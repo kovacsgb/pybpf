@@ -9,21 +9,12 @@
 # - Deleting unneded imports and ineffective attempts
 # - Refactor again with the working tests above
 
-from scipy.optimize import fsolve
-import sympy as sympy
+
 from math import pi
 from math import exp
 from math import sqrt
 import astropy.constants as consts
 import astropy.units as u
-
-x, y, z = sympy.symbols("x y z")
-c1,c2,c3,c4,c5 = sympy.symbols("c1 c2 c3 c4 c5")
-
-#print(consts.h.cgs.value,consts.k_B.cgs.value)
-
-#print((2*pi * consts.m_e.cgs.value * consts.k_B.cgs.value * 1000) ** 1.5 / (consts.h.cgs.value ** 3))
-
 
 class Constants:
     R_HII = 0.0
@@ -141,43 +132,6 @@ def Iteration(x1,y1,z1):
 
 Constants.Calc_R_HeII(15000)
 
-
-def f1(x,y,z):
-    result = x * (Constants.n_H * x + Constants.n_He * y + Constants.n_He * 2 * z) / (1 - x) - Constants.R_HII
-    return result
-
-def f2(x,y,z):
-    result = y * (Constants.n_H * x + Constants.n_He * y + Constants.n_He * 2 * z) / (1 - y - z) - Constants.R_HeII
-    return result
-
-def f3(x,y,z):
-    result = z *(Constants.n_H * x + Constants.n_He * y + Constants.n_He * 2 * z) / y - Constants.R_HeIII
-    return result
-
-def f01(x):
-    result = x ** 2 / (1 - x) - Constants.R_HII
-    return result
-
-def f02(y):
-    result = y ** 2 / (1 - y) - Constants.R_HeII
-    return result
-
-def f03(z):
-    result = z ** 2 / (1 - z) - Constants.R_HeIII
-    return result
-
-
-
-def func(x):
-    res1=f1(x[0],x[1],x[2])
-    res2=f2(x[0],x[1],x[2])
-    res3=f3(x[0],x[1],x[2])
-    return [res1, res2, res3]
-
-#beolvasás
-
-#infile = open("fort.19", "r")
-
 infile = open("adat_ready.txt", "r")
 
 lines = [line.strip("\n") for line in infile]
@@ -215,7 +169,7 @@ for line in data:
     if T <= 0:
         continue
     Constants.Calc_consts(rho, T)
-    kif= x ** 2 / (1 - x) - Constants.R_HII / Constants.n_H
+
 
     bval=Constants.R_HII/Constants.n_H
 
