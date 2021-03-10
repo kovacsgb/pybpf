@@ -1,6 +1,13 @@
 #Calculate ionisation fractions
 #
 # v 0.1
+#TODO:
+# - Refactor iterations to OOP
+# - interface with tcdata module
+# - Callable functions from outside
+# - Testing utilites
+# - Deleting unneded imports and ineffective attempts
+# - Refactor again with the working tests above
 
 from scipy.optimize import fsolve
 import sympy as sympy
