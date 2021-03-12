@@ -165,6 +165,31 @@ def FirstIteration():
     #print(x,y,z)
     return x,y,z
 
+def SecondIteration(x0,y0,z0):
+    """
+    In this step we uses previous x0 y0 and z0 values, with full n_e.
+    Here we calcute frist z and after that y, because 1-y-z < 0 or should use only 1-y?
+    """
+
+    b_x = (y0 * Constants.n_He + 2 * z0 * Constants.n_He + Constants.R_HII) / Constants.n_H
+    c_x = - Constants.R_HII / Constants.n_H
+
+
+
+    b_y = (x0* Constants.n_H + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
+    c_y = (z0 - 1) * Constants.R_HeII / Constants.n_He
+
+    y = CalcSecondOrder(b_y,c_y)
+
+    b_z = (x0* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
+    c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
+
+    x = CalcSecondOrder(b_x, c_x)
+    
+    z = CalcSecondOrder(b_z, c_z)
+
+    return x,y,z
+
 #print(data[15])
 
 datablock = [[] for i in range(4) ]
@@ -295,6 +320,7 @@ for line in data:
     
     datablock[0].append(T)
     x0,y0,z0 = FirstIteration()
+    x0,y0,z0 = SecondIteration(x0,y0,z0)
     datablock[1].append(x0)
     datablock[2].append(y0)
     datablock[3].append(z0)
@@ -357,8 +383,9 @@ print(type(datablock[1][0]))
 #exit()
 from matplotlib import pyplot as plt
 
-plt.plot(datablock[0],datablock[1])
-plt.plot(datablock[0],datablock[2])
-plt.plot(datablock[0],datablock[3])
+plt.plot(datablock[0],datablock[1], label = "x")
+plt.plot(datablock[0],datablock[2], label = 'y')
+plt.plot(datablock[0],datablock[3], label = 'z')
+plt.legend()
 plt.xlim(6000,1e5)
 plt.show()
