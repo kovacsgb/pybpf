@@ -190,6 +190,65 @@ def SecondIteration(x0,y0,z0):
 
     return x,y,z
 
+def f_vector(x_vec) -> np.array :
+    x = x_vec[0]
+    y = x_vec[1]
+    z = x_vec[2]
+
+    b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
+    c_x = - Constants.R_HII / Constants.n_H
+
+    b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
+    c_y = (z - 1) * Constants.R_HeII / Constants.n_He
+    b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
+    c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
+
+    fvec = np.array(
+        [x ** 2 + x * b_x  + c_x,
+        y ** 2 + y * b_y + c_y,
+        z ** 2 + z * b_z + c_z]
+    )
+    return fvec
+
+def jacobian(x_vec) -> np.array :
+    x = x_vec[0]
+    y = x_vec[1]
+    z = x_vec[2]
+
+    b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
+
+    b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
+    
+    b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
+    
+
+    thejacobian = np.array(
+        [
+          [2 *x + b_x,  x * Constants.n_He/Constants.n_H, 2* x *Constants.n_He / Constants.n_H],
+          [y * Constants.n_H / Constants.n_He, 2*y + b_y, 2 * y + Constants.R_HeII / Constants.n_He] ,
+          [0.5 *z * Constants.n_H / Constants.n_He, 0.5 * (z - Constants.R_HeIII / Constants.n_He), 2*z + b_z]
+        ]
+    )
+    return thejacobian
+
+
+def NextIteration(x0,y0,z0):
+    """
+    Here are the iterations supposed to use more than once.
+    """
+    b_x = (y0 * Constants.n_He + 2 * z0 * Constants.n_He + Constants.R_HII) / Constants.n_H
+    c_x = - Constants.R_HII / Constants.n_H
+
+    b_y = (x0* Constants.n_H + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
+    c_y = (z0 - 1) * Constants.R_HeII / Constants.n_He
+    b_z = (x0* Constants.n_H + y0 * Constants.n_He) / (2 * Constants.n_He)
+    c_z = - y0 * Constants.R_HeIII / (2* Constants.n_He)
+
+    x = CalcSecondOrder(b_x, c_x)
+    y = CalcSecondOrder(b_y,c_y)
+    z = CalcSecondOrder(b_z, c_z)
+    return x,y,z
+
 #print(data[15])
 
 datablock = [[] for i in range(4) ]
@@ -321,10 +380,19 @@ for line in data:
     datablock[0].append(T)
     x0,y0,z0 = FirstIteration()
     x0,y0,z0 = SecondIteration(x0,y0,z0)
+    x_vec=np.array([x0,y0,z0])
+    for i in range(100):
+        Jac=jacobian(x_vec)
+        x_vec_new = x_vec - np.linalg.inv(Jac).dot(f_vector(x_vec))
+        print(diff(*x_vec_new, *x_vec))
+        x_vec=x_vec_new
+    x0=x_vec[0]
+    y0=x_vec[1]
+    z0=x_vec[2]
     datablock[1].append(x0)
     datablock[2].append(y0)
     datablock[3].append(z0)
-    print(datablock[0][-1],datablock[1][-1],datablock[2][-1],datablock[3][-1])
+    #print(datablock[0][-1],datablock[1][-1],datablock[2][-1],datablock[3][-1])
     outfile.write("{0} {1:8.6E} {2:8.6E} {3:8.6E} {4:8.6E} {5:8.6E} {6:8.6E}\n".format(T,x2,y2,z2,line[2],line[3],line[4]))
 
     ###Checking
