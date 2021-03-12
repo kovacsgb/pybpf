@@ -15,7 +15,8 @@ from math import exp
 from math import sqrt
 import astropy.constants as consts
 import astropy.units as u
-
+from astropy.units.core import _recreate_irreducible_unit
+import numpy as np
 
 class IterationError(Exception):
     def __init__(self, *args: object) -> None:
@@ -136,10 +137,37 @@ data=list()
 for line in lines:
     data.append(list(float(words) for words in line.split()))
 
+def Discriminant(b,c):
+    return b ** 2 - 4 *c
 
+def CalcSecondOrder(b,c):
+    det = Discriminant(b,c)
+    return (- b + sqrt(det))/2
 
+def FirstIteration():
+    """
+    In this step we calcute x whitout y and z, calculate y without z and calculate z with y~1-z
+    """
+    x = y = z = 0
+
+    b_x = Constants.R_HII / Constants.n_H
+    c_x = - Constants.R_HII / Constants.n_H
+    x = CalcSecondOrder(b_x, c_x)
+
+    b_y = (x* Constants.n_H + Constants.R_HeII) / Constants.n_He
+    c_y = - Constants.R_HeII / Constants.n_He
+    y = CalcSecondOrder(b_y,c_y)
+
+    b_z = (x* Constants.n_H + Constants.n_He + Constants.R_HeIII) / Constants.n_He
+    c_z = - Constants.R_HeIII / Constants.n_He
+
+    z = CalcSecondOrder(b_z, c_z)
+    #print(x,y,z)
+    return x,y,z
 
 #print(data[15])
+
+datablock = [[] for i in range(4) ]
 
 print(len(lines))
 line= None
@@ -265,7 +293,12 @@ for line in data:
     #print("{0} K, x = {1:8.6E}\ty = {2:8.6E}\tz = {3:8.6E} ;;; dx = {4:8.6E}, dy = {5:8.6E}, dz = {6:8.5E}".format(T,x2,y2,z2,line[2]-x2,line[3]-y2,line[4]-z2))
     #print("{0} K, x = {1:8.6E}\ty = {2:8.6E}\tz = {3:8.6E} ;;; dx = {4:8.6E}, dy = {5:8.6E}, dz = {6:8.5E}".format(T,x2,y2,z2,abs(line[2]-x2)/line[2],abs((line[3]-y2)/line[3]),abs((line[4]-z2)/line[4])))
     
-    
+    datablock[0].append(T)
+    x0,y0,z0 = FirstIteration()
+    datablock[1].append(x0)
+    datablock[2].append(y0)
+    datablock[3].append(z0)
+    print(datablock[0][-1],datablock[1][-1],datablock[2][-1],datablock[3][-1])
     outfile.write("{0} {1:8.6E} {2:8.6E} {3:8.6E} {4:8.6E} {5:8.6E} {6:8.6E}\n".format(T,x2,y2,z2,line[2],line[3],line[4]))
 
     ###Checking
@@ -318,3 +351,14 @@ for line in data:
     #break
     #print(rho,T,x0)#,y0,z0)
 outfile.close()
+
+print(type(datablock[1][0]))
+
+#exit()
+from matplotlib import pyplot as plt
+
+plt.plot(datablock[0],datablock[1])
+plt.plot(datablock[0],datablock[2])
+plt.plot(datablock[0],datablock[3])
+plt.xlim(6000,1e5)
+plt.show()
