@@ -262,129 +262,29 @@ outfile = open("kimenet.txt","w")
 for line in data:
     if len(line) == 0:
         continue
-    #print(line[6]/line[17],line[5])
-    #rho = line[6]/line[17]
     rho = 1/line[8] #adat_ready.txt
     
-    #T = line[5]
     T = line[10] # adat_ready.txt
-    #print(line)
-   # print(T,"{0:E} {1:E} {2:E}".format(rho, line[12], line[8]))
-    
     if T <= 0:
         continue
     Constants.Calc_consts(rho, T)
 
-
-    bval=Constants.R_HII/Constants.n_H
-
-    det = bval ** 2 + 4 * bval
-
-
-    #Érdemes lehet felcserélni z és y számolását. (z magasabb hőmérsékleten lesz 1, és 1-z jobban közelíti ekkor y-t.) Ezzel csinálni az első iterációs lépést.
-    x0 = ( - (1 * bval) + sqrt(det)) / 2
-    x02 = ( - (1 * bval) - sqrt(det)) / 2
-    #print(T," K and x0=",x0," ",x02, "and det =",bval ** 2 + 4 * bval, "bval =",bval)
-   # print( sympy.nsolve(kif,x0))
-
-    ###calc z
-    bval_z = (Constants.n_H * x0 + Constants.n_He + Constants.R_HeIII) / ( Constants.n_He)
-    cval_z = - (Constants.R_HeIII)  / ( Constants.n_He)
-    det3 = (bval_z ** 2 - 4 * cval_z )
-    z0=  ( - (1 * bval_z) + sqrt(det3)) / 2
-    z02=  ( - (1 * bval_z) - sqrt(det3)) / 2
-
-    ###calc y
-    bval_y = (Constants.n_H * x0 + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
-    cval_y =(z0 * Constants.R_HeII - Constants.R_HeII ) / Constants.n_He
-    det2 = (bval_y ** 2 - 4 * cval_y )
-    y0=  ( - (1 * bval_y) + sqrt(det2)) / 2
-    y02=  ( - (1 * bval_y) - sqrt(det2)) / 2
-    #print("          and y0=",y0," ",y02, "and det2 =",det2, "bval_y=",bval_y, "cval_y=", cval_y)
-
-   # print("          and z0=",z0," ",z02, "and det3 =",det3, "bval_z=",bval_z, "cval_z=", cval_z)
-
-
-    ###Second iteration
-    bval=((y0 + 2 *z0) * Constants.n_He +Constants.R_HII)/Constants.n_H
-    cval= - Constants.R_HII / Constants.n_H
-    det = bval ** 2 - 4 * cval
-    x1 = ( - (1 * bval) + sqrt(det)) / 2
-    
-    bval_z = (Constants.n_H * x0 + y0 * Constants.n_He ) / (2* Constants.n_He)
-    cval_z = - (y0 * Constants.R_HeIII)  / (2* Constants.n_He)
-    
-    det3 = (bval_z ** 2 - 4 * cval_z )
-
-    z1=  ( - (1 * bval_z) + sqrt(det3)) / 2  
-
-    bval_y=(Constants.n_H * x0 + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
-    cval_y =(z0 * Constants.R_HeII - Constants.R_HeII ) / Constants.n_He
-    det2 = (bval_y ** 2 - 4 * cval_y )
-    y1=  ( - (1 * bval_y) + sqrt(det2)) / 2
-
-  
-
-   ### Third iteration
-    bval=((y1 + 2 *z1) * Constants.n_He +Constants.R_HII)/Constants.n_H
-    cval= - Constants.R_HII / Constants.n_H
-    det = bval ** 2 - 4 * cval
-    x2 = ( - (1 * bval) + sqrt(det)) / 2
-
-    bval_z = (Constants.n_H * x1 + y1 * Constants.n_He ) / (2* Constants.n_He)
-    cval_z = - (y1 * Constants.R_HeIII)  / (2* Constants.n_He)
-    
-    det3 = (bval_z ** 2 - 4 * cval_z )
-    z2=  ( - (1 * bval_z) + sqrt(det3)) / 2 
-
-
-    bval_y=(Constants.n_H * x1 + Constants.R_HeII + 2 * z1 * Constants.n_He) / Constants.n_He
-    cval_y =(z1 * Constants.R_HeII - Constants.R_HeII ) / Constants.n_He
-    det2 = (bval_y ** 2 - 4 * cval_y )
-    y2=  ( - (1 * bval_y) + sqrt(det2)) / 2
-
- 
-    x3,y3,z3 = Iteration(x2,y2,z2)
-    #x3 = x2
-    #y3 = y2
-    #z3 = z2
-   ### Last Iteration
-    bval=((y3 + 2 *z3) * Constants.n_He +Constants.R_HII)/Constants.n_H
-    cval= - Constants.R_HII / Constants.n_H
-    det = bval ** 2 - 4 * cval
-    x2 = ( - (1 * bval) + sqrt(det)) / 2
-
-    bval_z = (Constants.n_H * x3 + y3 * Constants.n_He ) / (2* Constants.n_He)
-    cval_z = - (y3 * Constants.R_HeIII)  / (2* Constants.n_He)
-    
-    det3 = (bval_z ** 2 - 4 * cval_z )
-    z2=  ( - (1 * bval_z) + sqrt(det3)) / 2 
-
-
-    bval_y=(Constants.n_H * x2 + Constants.R_HeII + 2 * z2 * Constants.n_He) / Constants.n_He
-    cval_y =(z2 * Constants.R_HeII - Constants.R_HeII ) / Constants.n_He
-    det2 = (bval_y ** 2 - 4 * cval_y )
-    y2=  ( - (1 * bval_y) + sqrt(det2)) / 2
-
-
-
-    #print(T, " K, x = ", x2, " x0 = ", x1, " Delta X = ", (x3-x2))
-    #print("            y = ", y2, " y0 = ", y1, " Delta Y = ", (y3-y2))
-    #print("            z = ", z2, " z0 = ", z1, " Delta Z = ", (z3-z2) )
-
-    #print(T, " K, x = ", x2, " y = ", y2, " z = ", z2)
-    #print("{0} K, x = {1:8.6E}\ty = {2:8.6E}\tz = {3:8.6E} ;;; xe = {4:8.6E}, ye = {5:8.6E}, ze = {6:8.5E}".format(T,x2,y2,z2,line[2],line[3],line[4]))
-    #print("{0} K, x = {1:8.6E}\ty = {2:8.6E}\tz = {3:8.6E} ;;; dx = {4:8.6E}, dy = {5:8.6E}, dz = {6:8.5E}".format(T,x2,y2,z2,line[2]-x2,line[3]-y2,line[4]-z2))
-    #print("{0} K, x = {1:8.6E}\ty = {2:8.6E}\tz = {3:8.6E} ;;; dx = {4:8.6E}, dy = {5:8.6E}, dz = {6:8.5E}".format(T,x2,y2,z2,abs(line[2]-x2)/line[2],abs((line[3]-y2)/line[3]),abs((line[4]-z2)/line[4])))
-    
     datablock[0].append(T)
     x0,y0,z0 = FirstIteration()
     x0,y0,z0 = SecondIteration(x0,y0,z0)
     x_vec=np.array([x0,y0,z0])
-    for i in range(100):
+    iteration_cnt = 0
+    while True:
         Jac=jacobian(x_vec)
         x_vec_new = x_vec - np.linalg.inv(Jac).dot(f_vector(x_vec))
         print(diff(*x_vec_new, *x_vec))
+        iteration_cnt += 1
+        if diff(*x_vec_new,*x_vec) < 1e-8 or iteration_cnt >= 1000:
+            x_vec=x_vec_new
+            print(iteration_cnt)
+            if iteration_cnt >= 1000:
+                raise IterationError("Iteration not converge")
+            break
         x_vec=x_vec_new
     x0=x_vec[0]
     y0=x_vec[1]
@@ -392,14 +292,14 @@ for line in data:
     datablock[1].append(x0)
     datablock[2].append(y0)
     datablock[3].append(z0)
-    #print(datablock[0][-1],datablock[1][-1],datablock[2][-1],datablock[3][-1])
-    outfile.write("{0} {1:8.6E} {2:8.6E} {3:8.6E} {4:8.6E} {5:8.6E} {6:8.6E}\n".format(T,x2,y2,z2,line[2],line[3],line[4]))
+    
+    outfile.write("{0} {1:8.6E} {2:8.6E} {3:8.6E} {4:8.6E} {5:8.6E} {6:8.6E}\n".format(T,x0,y0,z0,line[2],line[3],line[4]))
 
     ###Checking
 
     
 
-    n_e=x2*Constants.n_H + (y2 + 2 * z2) * Constants.n_He
+    """n_e=x2*Constants.n_H + (y2 + 2 * z2) * Constants.n_He
 
     n_e0=x0*Constants.n_H + (y0 + 2 * z0) * Constants.n_He
 
@@ -410,7 +310,7 @@ for line in data:
     egy01 = x0 * n_e0 / (1 - x0) - Constants.R_HII
     egy02 = y0 * n_e0 / (1 - y0 - z0) - Constants.R_HeII
     egy03 = z0 * n_e0 / y0 - Constants.R_HeIII
-
+    """
     #print("            pontosság: ", (egy1/Constants.R_HII+egy1/(x0 * n_e / (1 - x0)))/2)
 
     #y0 = #fsolve(f02, 0.675486)
