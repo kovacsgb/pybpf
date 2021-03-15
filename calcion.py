@@ -86,42 +86,6 @@ def diff(x1,y1,z1,x2,y2,z2):
     difference=sqrt(dx**2+dy**2+dz**2)
     return difference
 
-def Iteration(x1,y1,z1):
-    #print("It start:",x1,y1,z1)
-    z2 = 0
-    y2 = 0
-    x2 = 0
-    iter_cnt = 0
-
-    while True:
-        bval=((y1 + 2 *z1) * Constants.n_He +Constants.R_HII)/Constants.n_H
-        cval= - Constants.R_HII / Constants.n_H
-        det = bval ** 2 - 4 * cval
-        x2 = ( - (1 * bval) + sqrt(det)) / 2
-
-        bval_z = (Constants.n_H * x1 + Constants.n_He + Constants.R_HeIII) / ( Constants.n_He)
-        cval_z = - ( Constants.R_HeIII)  / ( Constants.n_He)
-        
-        det3 = (bval_z ** 2 - 4 * cval_z )
-        z2=  ( - (1 * bval_z) + sqrt(det3)) / 2
-
-        bval_y=(Constants.n_H * x1 + Constants.R_HeII + 2 * z1 * Constants.n_He) / Constants.n_He
-        cval_y =(z1 * Constants.R_HeII - Constants.R_HeII ) / Constants.n_He
-        det2 = (bval_y ** 2 - 4 * cval_y )
-        y2=  ( - (1 * bval_y) + sqrt(det2)) / 2
-
-
-        if (diff(x1,y1,z1,x2,y2,z2) < 1e-8 or iter_cnt == 1000):
-            if (iter_cnt == 1000):
-                raise IterationError("Equation not iterating")
-            break
-        x1=x2
-        y1=y2
-        z1=z2
-        iter_cnt += 1
-    return x2, y2, z2
-
-
 
 
 Constants.Calc_R_HeII(15000)
