@@ -17,6 +17,7 @@ import astropy.constants as consts
 import astropy.units as u
 from astropy.units.core import _recreate_irreducible_unit
 import numpy as np
+import tcdata
 
 class IterationError(Exception):
     def __init__(self, *args: object) -> None:
@@ -78,13 +79,172 @@ class Constants:
         cls.Calc_R_HeIII(Temp)
         return None
 
+class Ionization:
+    
+    def __init__(self,tc_cell_object : tcdata.DataPoint,X,Y,rho=None,T=None ):
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.tc_object = tc_cell_object
+        Constants.X = X
+        Constants.Y = Y
+        if rho is None or T is None:
+            Constants.Calc_consts(1/self.tc_object.spec_vol,self.tc_object.temperature)      
+        else:
+            Constants.Calc_consts(rho,T)
 
-def diff(x1,y1,z1,x2,y2,z2):
-    dx=x2-x1
-    dy=y2-y1
-    dz=z2-z1
-    difference=sqrt(dx**2+dy**2+dz**2)
-    return difference
+    @staticmethod
+    def diff(x1,y1,z1,x2,y2,z2):
+        dx=x2-x1
+        dy=y2-y1
+        dz=z2-z1
+        difference=sqrt(dx**2+dy**2+dz**2)
+        return difference
+
+
+    @staticmethod
+    def __Discriminant(b,c):
+        return b ** 2 - 4 *c
+
+    def __CalcSecondOrder(self,b,c):
+        det = self.__Discriminant(b,c)
+        return (- b + sqrt(det))/2
+
+    def __FirstIteration(self):
+        """
+        In this step we calcute x whitout y and z, calculate y without z and calculate z with y~1-z
+        """
+        x = y = z = 0
+
+        b_x = Constants.R_HII / Constants.n_H
+        c_x = - Constants.R_HII / Constants.n_H
+        x = self.__CalcSecondOrder(b_x, c_x)
+
+        b_y = (x* Constants.n_H + Constants.R_HeII) / Constants.n_He
+        c_y = - Constants.R_HeII / Constants.n_He
+        y = self.__CalcSecondOrder(b_y,c_y)
+
+        b_z = (x* Constants.n_H + Constants.n_He + Constants.R_HeIII) / Constants.n_He
+        c_z = - Constants.R_HeIII / Constants.n_He
+
+        z = self.__CalcSecondOrder(b_z, c_z)
+        #print(x,y,z)
+        return x,y,z
+
+    def __SecondIteration(self,x0,y0,z0):
+        """
+        In this step we uses previous x0 y0 and z0 values, with full n_e.
+        Here we calcute frist z and after that y, because 1-y-z < 0 or should use only 1-y?
+        """
+
+        b_x = (y0 * Constants.n_He + 2 * z0 * Constants.n_He + Constants.R_HII) / Constants.n_H
+        c_x = - Constants.R_HII / Constants.n_H
+
+
+
+        b_y = (x0* Constants.n_H + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
+        c_y = (z0 - 1) * Constants.R_HeII / Constants.n_He
+
+        y = self.__CalcSecondOrder(b_y,c_y)
+
+        b_z = (x0* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
+        c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
+
+        x = self.__CalcSecondOrder(b_x, c_x)
+        
+        z = self.__CalcSecondOrder(b_z, c_z)
+        self.x = x
+        self.y = y
+        self.z = z
+        return x,y,z
+
+    def Calculation(self):
+        x,y,z = self.__FirstIteration()
+        x,y,z = self.__SecondIteration(x,y,z)
+
+        next_iterations = NewtonianIterator(x,y,z)
+        x,y,z = next_iterations.NewtonianIteration()
+
+        self.x = x
+        self.y = y
+        self.z = z
+
+        return x,y,z
+
+
+class NewtonianIterator:
+
+    def __init__(self,x0,y0,z0):
+        self.__x_vec_n = np.array([x0,y0,z0])
+        self.__x_vec_np1 = np.array([x0,x0,x0])
+
+
+    def __f_vector(self,x_vec) -> np.array :
+        x = x_vec[0]
+        y = x_vec[1]
+        z = x_vec[2]
+
+        b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
+        c_x = - Constants.R_HII / Constants.n_H
+
+        b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
+        c_y = (z - 1) * Constants.R_HeII / Constants.n_He
+        b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
+        c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
+
+        fvec = np.array(
+            [x ** 2 + x * b_x  + c_x,
+            y ** 2 + y * b_y + c_y,
+            z ** 2 + z * b_z + c_z]
+        )
+        return fvec
+
+    def __jacobian(self,x_vec = None) -> np.array :
+        if x_vec is None:
+            x_vec = self.__x_vec_n
+        
+        x = x_vec[0]
+        y = x_vec[1]
+        z = x_vec[2]
+
+        b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
+
+        b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
+        
+        b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)        
+
+        thejacobian = np.array(
+            [
+            [2 *x + b_x,  x * Constants.n_He/Constants.n_H, 2* x *Constants.n_He / Constants.n_H],
+            [y * Constants.n_H / Constants.n_He, 2*y + b_y, 2 * y + Constants.R_HeII / Constants.n_He] ,
+            [0.5 *z * Constants.n_H / Constants.n_He, 0.5 * (z - Constants.R_HeIII / Constants.n_He), 2*z + b_z]
+            ]
+        )
+        return thejacobian
+
+
+    def NewtonianIteration(self,x_vec = None):
+        """
+        Starting from the third step, we use Newton-Raphson method using previous results as starting values.
+        """
+        if x_vec is None:
+            x_vec = self.__x_vec_n
+            x_vec_np1 = self.__x_vec_np1
+        else:
+            x_vec=np.array([x0,y0,z0])
+        iteration_cnt = 0
+        while True:
+            Jac=self.__jacobian(x_vec)
+            x_vec_np1 = x_vec - np.linalg.inv(Jac).dot(self.__f_vector(x_vec))
+            
+            iteration_cnt += 1
+            if Ionization.diff(*x_vec_np1,*x_vec) < 1e-8 or iteration_cnt >= 1000:
+                x_vec=x_vec_np1
+                if iteration_cnt >= 1000:
+                    raise IterationError("Iteration not converge")
+                break
+            x_vec=x_vec_np1
+        return x_vec[0],x_vec[1],x_vec[2]
 
 
 
@@ -101,120 +261,7 @@ data=list()
 for line in lines:
     data.append(list(float(words) for words in line.split()))
 
-def Discriminant(b,c):
-    return b ** 2 - 4 *c
 
-def CalcSecondOrder(b,c):
-    det = Discriminant(b,c)
-    return (- b + sqrt(det))/2
-
-def FirstIteration():
-    """
-    In this step we calcute x whitout y and z, calculate y without z and calculate z with y~1-z
-    """
-    x = y = z = 0
-
-    b_x = Constants.R_HII / Constants.n_H
-    c_x = - Constants.R_HII / Constants.n_H
-    x = CalcSecondOrder(b_x, c_x)
-
-    b_y = (x* Constants.n_H + Constants.R_HeII) / Constants.n_He
-    c_y = - Constants.R_HeII / Constants.n_He
-    y = CalcSecondOrder(b_y,c_y)
-
-    b_z = (x* Constants.n_H + Constants.n_He + Constants.R_HeIII) / Constants.n_He
-    c_z = - Constants.R_HeIII / Constants.n_He
-
-    z = CalcSecondOrder(b_z, c_z)
-    #print(x,y,z)
-    return x,y,z
-
-def SecondIteration(x0,y0,z0):
-    """
-    In this step we uses previous x0 y0 and z0 values, with full n_e.
-    Here we calcute frist z and after that y, because 1-y-z < 0 or should use only 1-y?
-    """
-
-    b_x = (y0 * Constants.n_He + 2 * z0 * Constants.n_He + Constants.R_HII) / Constants.n_H
-    c_x = - Constants.R_HII / Constants.n_H
-
-
-
-    b_y = (x0* Constants.n_H + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
-    c_y = (z0 - 1) * Constants.R_HeII / Constants.n_He
-
-    y = CalcSecondOrder(b_y,c_y)
-
-    b_z = (x0* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
-    c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
-
-    x = CalcSecondOrder(b_x, c_x)
-    
-    z = CalcSecondOrder(b_z, c_z)
-
-    return x,y,z
-
-def f_vector(x_vec) -> np.array :
-    x = x_vec[0]
-    y = x_vec[1]
-    z = x_vec[2]
-
-    b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
-    c_x = - Constants.R_HII / Constants.n_H
-
-    b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
-    c_y = (z - 1) * Constants.R_HeII / Constants.n_He
-    b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
-    c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
-
-    fvec = np.array(
-        [x ** 2 + x * b_x  + c_x,
-        y ** 2 + y * b_y + c_y,
-        z ** 2 + z * b_z + c_z]
-    )
-    return fvec
-
-def jacobian(x_vec) -> np.array :
-    x = x_vec[0]
-    y = x_vec[1]
-    z = x_vec[2]
-
-    b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
-
-    b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
-    
-    b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
-    
-
-    thejacobian = np.array(
-        [
-          [2 *x + b_x,  x * Constants.n_He/Constants.n_H, 2* x *Constants.n_He / Constants.n_H],
-          [y * Constants.n_H / Constants.n_He, 2*y + b_y, 2 * y + Constants.R_HeII / Constants.n_He] ,
-          [0.5 *z * Constants.n_H / Constants.n_He, 0.5 * (z - Constants.R_HeIII / Constants.n_He), 2*z + b_z]
-        ]
-    )
-    return thejacobian
-
-
-def NewtonianIteration(x0,y0,z0):
-    """
-    Starting from the third step, we use Newton-Raphson method using previous results as starting values.
-    """
-    x_vec=np.array([x0,y0,z0])
-    iteration_cnt = 0
-    while True:
-        Jac=jacobian(x_vec)
-        x_vec_new = x_vec - np.linalg.inv(Jac).dot(f_vector(x_vec))
-        print(diff(*x_vec_new, *x_vec))
-        iteration_cnt += 1
-        if diff(*x_vec_new,*x_vec) < 1e-8 or iteration_cnt >= 1000:
-            x_vec=x_vec_new
-            print(iteration_cnt)
-            if iteration_cnt >= 1000:
-                raise IterationError("Iteration not converge")
-            break
-        x_vec=x_vec_new
-    return x_vec[0],x_vec[1],x_vec[2]
 datablock = [[] for i in range(4) ]
 
 print(len(lines))
@@ -234,9 +281,11 @@ for line in data:
     Constants.Calc_consts(rho, T)
 
     datablock[0].append(T)
-    x0,y0,z0 = FirstIteration()
-    x0,y0,z0 = SecondIteration(x0,y0,z0)
-    x0,y0,z0 = NewtonianIteration(x0,y0,z0)
+    # x0,y0,z0 = FirstIteration()
+    # x0,y0,z0 = SecondIteration(x0,y0,z0)
+    # x0,y0,z0 = NewtonianIteration(x0,y0,z0)
+    ionization_obj = Ionization(tcdata.DataPoint(""),0.75,0.2499,rho,T)
+    x0,y0,z0 = ionization_obj.Calculation()
     datablock[1].append(x0)
     datablock[2].append(y0)
     datablock[3].append(z0)
