@@ -196,25 +196,25 @@ def jacobian(x_vec) -> np.array :
     return thejacobian
 
 
-def NextIteration(x0,y0,z0):
+def NewtonianIteration(x0,y0,z0):
     """
-    Here are the iterations supposed to use more than once.
+    Starting from the third step, we use Newton-Raphson method using previous results as starting values.
     """
-    b_x = (y0 * Constants.n_He + 2 * z0 * Constants.n_He + Constants.R_HII) / Constants.n_H
-    c_x = - Constants.R_HII / Constants.n_H
-
-    b_y = (x0* Constants.n_H + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
-    c_y = (z0 - 1) * Constants.R_HeII / Constants.n_He
-    b_z = (x0* Constants.n_H + y0 * Constants.n_He) / (2 * Constants.n_He)
-    c_z = - y0 * Constants.R_HeIII / (2* Constants.n_He)
-
-    x = CalcSecondOrder(b_x, c_x)
-    y = CalcSecondOrder(b_y,c_y)
-    z = CalcSecondOrder(b_z, c_z)
-    return x,y,z
-
-#print(data[15])
-
+    x_vec=np.array([x0,y0,z0])
+    iteration_cnt = 0
+    while True:
+        Jac=jacobian(x_vec)
+        x_vec_new = x_vec - np.linalg.inv(Jac).dot(f_vector(x_vec))
+        print(diff(*x_vec_new, *x_vec))
+        iteration_cnt += 1
+        if diff(*x_vec_new,*x_vec) < 1e-8 or iteration_cnt >= 1000:
+            x_vec=x_vec_new
+            print(iteration_cnt)
+            if iteration_cnt >= 1000:
+                raise IterationError("Iteration not converge")
+            break
+        x_vec=x_vec_new
+    return x_vec[0],x_vec[1],x_vec[2]
 datablock = [[] for i in range(4) ]
 
 print(len(lines))
@@ -236,23 +236,7 @@ for line in data:
     datablock[0].append(T)
     x0,y0,z0 = FirstIteration()
     x0,y0,z0 = SecondIteration(x0,y0,z0)
-    x_vec=np.array([x0,y0,z0])
-    iteration_cnt = 0
-    while True:
-        Jac=jacobian(x_vec)
-        x_vec_new = x_vec - np.linalg.inv(Jac).dot(f_vector(x_vec))
-        print(diff(*x_vec_new, *x_vec))
-        iteration_cnt += 1
-        if diff(*x_vec_new,*x_vec) < 1e-8 or iteration_cnt >= 1000:
-            x_vec=x_vec_new
-            print(iteration_cnt)
-            if iteration_cnt >= 1000:
-                raise IterationError("Iteration not converge")
-            break
-        x_vec=x_vec_new
-    x0=x_vec[0]
-    y0=x_vec[1]
-    z0=x_vec[2]
+    x0,y0,z0 = NewtonianIteration(x0,y0,z0)
     datablock[1].append(x0)
     datablock[2].append(y0)
     datablock[3].append(z0)
