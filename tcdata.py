@@ -12,6 +12,7 @@ in Python.
 Created by: Gábor B. Kovács 2021
 """
 from astropy.constants import cgs
+from math import pi
 import numpy as np
 import astropy.constants as constants
 from astropy import units
@@ -34,6 +35,13 @@ class BaseData:
         else:
             raise KeyError('There is no'+str(key)+'data member.')
     
+    def insertColumn(self,data,columnnames):
+        if data is dict:
+            self.datablock.update(data)
+        else:
+            self.datablock.update(dict(zip(columnnames,data)))
+        self.column_names += columnnames
+
     def __getattr__(self,key):
         return self.data(key)
     
@@ -145,6 +153,7 @@ class RawProfiles:
         self.num_time_series=0
         self.num_profiles=0
         self.read_file(filename)
+        self.CalcSpecVol()
 
     def read_file(self,filename):
         infile=open(filename)
@@ -156,6 +165,23 @@ class RawProfiles:
 
     def __getitem__(self,key) -> DataPoint:
         return self.datablock[key]
+
+    def CalcSpecVol(self):
+        for i in range(len(self.datablock)):
+            #print(i)
+            r = self.datablock[i].radius
+            if self.datablock[i].zone == 1:
+                volume = 4 * r ** 3 * pi / 3
+                spec_vol = volume / self.datablock[i].mass
+            else:
+                r_nm1 = self.datablock[i-1].radius
+                volume = 4* pi /3 * ( r**3 - r_nm1 ** 3)
+                if self.datablock[i].dm != 0:
+                    spec_vol = volume / self.datablock[i].dm
+                else:
+                    spec_vol = volume / self.datablock[i-1].dm
+            self.datablock[i].insertColumn([spec_vol],tuple(['spec_vol']))
+
 
 
 
@@ -243,7 +269,7 @@ if(__name__ == '__main__'):
     fort19_data=RawProfiles(fort19_path)
     print(a_point.datablock)
     print(a_point.dm)
-    print(fort19_data[15].zone)
+    print(fort19_data[15].spec_vol)
 
     #Testing Timeseries:
     #surface:

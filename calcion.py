@@ -97,8 +97,7 @@ class IonizationData(tcdata.BaseData):
     def injectToDataPoint(self, datapoint_obj : tcdata.DataPoint):
         print(self.datablock)
         print(datapoint_obj.datablock)
-        datapoint_obj.datablock.update(self.datablock)
-        datapoint_obj.column_names += self.column_names
+        datapoint_obj.insertColumn(self.datablock,self.column_names)
         return datapoint_obj
 
 class Ionization:
@@ -122,7 +121,6 @@ class Ionization:
         dz=z2-z1
         difference=sqrt(dx**2+dy**2+dz**2)
         return difference
-
 
     @staticmethod
     def __Discriminant(b,c):
@@ -193,7 +191,21 @@ class Ionization:
 
         return x,y,z
 
+    def Reload(self, tc_cell_object : tcdata.DataPoint,X,Y,rho=None, T=None):
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.tc_object = tc_cell_object
+        Constants.X = X
+        Constants.Y = Y
+        if rho is None or T is None:
+            Constants.Calc_consts(1/self.tc_object.spec_vol,self.tc_object.temperature)      
+        else:
+            Constants.Calc_consts(rho,T)
 
+    @staticmethod
+    def IonizationForRawprofile(raw_obj : tcdata.RawProfiles,X,Y):
+        pass
 class NewtonianIterator:
 
     def __init__(self,x0,y0,z0):
