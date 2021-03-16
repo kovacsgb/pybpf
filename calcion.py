@@ -79,6 +79,28 @@ class Constants:
         cls.Calc_R_HeIII(Temp)
         return None
 
+
+class IonizationData(tcdata.BaseData):
+    
+    def __init__(self):
+        ionization_columnnames = ('HII_fraction','HeII_fraction','HeIII_fraction')
+        super().__init__(dict(zip(ionization_columnnames,[0,0,0])),ionization_columnnames)
+
+    @classmethod
+    def initWithData(cls,x,y,z):
+        obj = IonizationData()
+        obj.datablock['HII_fraction'] = x
+        obj.datablock['HeII_fraction'] = y
+        obj.datablock['HeIII_fraction'] = z
+        return obj
+
+    def injectToDataPoint(self, datapoint_obj : tcdata.DataPoint):
+        print(self.datablock)
+        print(datapoint_obj.datablock)
+        datapoint_obj.datablock.update(self.datablock)
+        datapoint_obj.column_names += self.column_names
+        return datapoint_obj
+
 class Ionization:
     
     def __init__(self,tc_cell_object : tcdata.DataPoint,X,Y,rho=None,T=None ):
@@ -246,111 +268,118 @@ class NewtonianIterator:
             x_vec=x_vec_np1
         return x_vec[0],x_vec[1],x_vec[2]
 
+if __name__ == '__main__':
+
+    Constants.Calc_R_HeII(15000)
+
+    infile = open("adat_ready.txt", "r")
+
+    lines = [line.strip("\n") for line in infile]
+
+    infile.close()
+
+    data=list()
+
+    for line in lines:
+        data.append(list(float(words) for words in line.split()))
 
 
-Constants.Calc_R_HeII(15000)
+    datablock = [[] for i in range(4) ]
 
-infile = open("adat_ready.txt", "r")
+    print(len(lines))
+    line= None
 
-lines = [line.strip("\n") for line in infile]
+    outfile = open("kimenet.txt","w")
 
-infile.close()
+    # adatsor
+    for line in data:
+        if len(line) == 0:
+            continue
+        rho = 1/line[8] #adat_ready.txt
+        
+        T = line[10] # adat_ready.txt
+        if T <= 0:
+            continue
+        Constants.Calc_consts(rho, T)
 
-data=list()
+        datablock[0].append(T)
+        # x0,y0,z0 = FirstIteration()
+        # x0,y0,z0 = SecondIteration(x0,y0,z0)
+        # x0,y0,z0 = NewtonianIteration(x0,y0,z0)
+        ionization_obj = Ionization(tcdata.DataPoint(""),0.75,0.2499,rho,T)
+        x0,y0,z0 = ionization_obj.Calculation()
+        datablock[1].append(x0)
+        datablock[2].append(y0)
+        datablock[3].append(z0)
+        
+        outfile.write("{0} {1:8.6E} {2:8.6E} {3:8.6E} {4:8.6E} {5:8.6E} {6:8.6E}\n".format(T,x0,y0,z0,line[2],line[3],line[4]))
 
-for line in lines:
-    data.append(list(float(words) for words in line.split()))
+        ###Checking
 
+        
 
-datablock = [[] for i in range(4) ]
+        """n_e=x2*Constants.n_H + (y2 + 2 * z2) * Constants.n_He
 
-print(len(lines))
-line= None
+        n_e0=x0*Constants.n_H + (y0 + 2 * z0) * Constants.n_He
 
-outfile = open("kimenet.txt","w")
+        egy1 = x2 * n_e / (1 - x2) - Constants.R_HII
+        egy2 = y2 * n_e / (1 - y2 - z2) - Constants.R_HeII
+        egy3 = z2 * n_e / y2 - Constants.R_HeIII
 
-# adatsor
-for line in data:
-    if len(line) == 0:
-        continue
-    rho = 1/line[8] #adat_ready.txt
-    
-    T = line[10] # adat_ready.txt
-    if T <= 0:
-        continue
-    Constants.Calc_consts(rho, T)
+        egy01 = x0 * n_e0 / (1 - x0) - Constants.R_HII
+        egy02 = y0 * n_e0 / (1 - y0 - z0) - Constants.R_HeII
+        egy03 = z0 * n_e0 / y0 - Constants.R_HeIII
+        """
+        #print("            pontosság: ", (egy1/Constants.R_HII+egy1/(x0 * n_e / (1 - x0)))/2)
 
-    datablock[0].append(T)
-    # x0,y0,z0 = FirstIteration()
-    # x0,y0,z0 = SecondIteration(x0,y0,z0)
-    # x0,y0,z0 = NewtonianIteration(x0,y0,z0)
-    ionization_obj = Ionization(tcdata.DataPoint(""),0.75,0.2499,rho,T)
-    x0,y0,z0 = ionization_obj.Calculation()
-    datablock[1].append(x0)
-    datablock[2].append(y0)
-    datablock[3].append(z0)
-    
-    outfile.write("{0} {1:8.6E} {2:8.6E} {3:8.6E} {4:8.6E} {5:8.6E} {6:8.6E}\n".format(T,x0,y0,z0,line[2],line[3],line[4]))
+        #y0 = #fsolve(f02, 0.675486)
+        #z0 = #fsolve(f03, 0.664258)
+        #print(x0,y0,z0)
+        #x,y,z, = -1, -1,-1
+        #if T > 100000:
+        #    x0,y0,z0 = 0.99 , 0.01, 0.99
+        #elif T > 50000:
+        #    x0,y0,z0 = 0.9576, 0.6548, 0.4012
+        #elif T > 20000:
+        #    x0,y0,z0 = 0.9, 0.25, 0.01
+        #elif T > 10000:
+        #    x0, y0, z0 = 0.8, 0.01, 0.001
+        #else:
+        #    x0,y0,z0 = 0.2, 0.01, 0.001
 
-    ###Checking
-
-    
-
-    """n_e=x2*Constants.n_H + (y2 + 2 * z2) * Constants.n_He
-
-    n_e0=x0*Constants.n_H + (y0 + 2 * z0) * Constants.n_He
-
-    egy1 = x2 * n_e / (1 - x2) - Constants.R_HII
-    egy2 = y2 * n_e / (1 - y2 - z2) - Constants.R_HeII
-    egy3 = z2 * n_e / y2 - Constants.R_HeIII
-
-    egy01 = x0 * n_e0 / (1 - x0) - Constants.R_HII
-    egy02 = y0 * n_e0 / (1 - y0 - z0) - Constants.R_HeII
-    egy03 = z0 * n_e0 / y0 - Constants.R_HeIII
-    """
-    #print("            pontosság: ", (egy1/Constants.R_HII+egy1/(x0 * n_e / (1 - x0)))/2)
-
-    #y0 = #fsolve(f02, 0.675486)
-    #z0 = #fsolve(f03, 0.664258)
-    #print(x0,y0,z0)
-    #x,y,z, = -1, -1,-1
-    #if T > 100000:
-    #    x0,y0,z0 = 0.99 , 0.01, 0.99
-    #elif T > 50000:
-    #    x0,y0,z0 = 0.9576, 0.6548, 0.4012
-    #elif T > 20000:
-    #    x0,y0,z0 = 0.9, 0.25, 0.01
-    #elif T > 10000:
-    #    x0, y0, z0 = 0.8, 0.01, 0.001
-    #else:
-    #    x0,y0,z0 = 0.2, 0.01, 0.001
-
-    res = []
-    #while x < 0 or x > 1 or y < 0 or y > 1 or z < 0 or z > 1:
-        #x,y,z = fsolve(func, [x0,y0,z0])
-        #print(x,y,z)
-    #for x0 in [ j * 0.1 for j in range(10)]:
-    #    for y0 in [ j * 0.1 for j in range(10)]:
-    #        for z0 in [ j * 0.1 for j in range(10)]:
-    #            x,y,z = fsolve(func, [x0,y0,z0])
-    #            if x >= 0 and x <= 1 and y >= 0 and y <= 1 and z >= 0 and z <= 1:
-    #                res.append([x,y,z])
-    #                print(x,y,z)
+        res = []
+        #while x < 0 or x > 1 or y < 0 or y > 1 or z < 0 or z > 1:
+            #x,y,z = fsolve(func, [x0,y0,z0])
+            #print(x,y,z)
+        #for x0 in [ j * 0.1 for j in range(10)]:
+        #    for y0 in [ j * 0.1 for j in range(10)]:
+        #        for z0 in [ j * 0.1 for j in range(10)]:
+        #            x,y,z = fsolve(func, [x0,y0,z0])
+        #            if x >= 0 and x <= 1 and y >= 0 and y <= 1 and z >= 0 and z <= 1:
+        #                res.append([x,y,z])
+        #                print(x,y,z)
 
 
-    #print(res)    
-    #break
-    #print(rho,T,x0)#,y0,z0)
-outfile.close()
+        #print(res)    
+        #break
+        #print(rho,T,x0)#,y0,z0)
+    outfile.close()
 
-print(type(datablock[1][0]))
+    print(type(datablock[1][0]))
 
-#exit()
-from matplotlib import pyplot as plt
+    #exit()
+    from matplotlib import pyplot as plt
 
-plt.plot(datablock[0],datablock[1], label = "x")
-plt.plot(datablock[0],datablock[2], label = 'y')
-plt.plot(datablock[0],datablock[3], label = 'z')
-plt.legend()
-plt.xlim(6000,1e5)
-plt.show()
+    plt.plot(datablock[0],datablock[1], label = "x")
+    plt.plot(datablock[0],datablock[2], label = 'y')
+    plt.plot(datablock[0],datablock[3], label = 'z')
+    plt.legend()
+    plt.xlim(6000,1e5)
+    plt.show()
+
+    a_point = tcdata.DataPoint("45\t136\t12\t50\t5.6\t2e5\t4.13e+29\t125.68\t1.25e40\t1.2e38\t12000\t1e29\t12e5\t1.5e4\t1e2\t0.98\n")
+    ions_from_tc = Ionization(a_point,0.75,0.2496,1e-2,1e5)
+    x,y,z =ions_from_tc.Calculation()
+    iondata = IonizationData.initWithData(x,y,z)
+    a_point = iondata.injectToDataPoint(a_point)
+    print(a_point.datablock)
