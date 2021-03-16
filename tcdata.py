@@ -166,6 +166,9 @@ class RawProfiles:
     def __getitem__(self,key) -> DataPoint:
         return self.datablock[key]
 
+    def __iter__(self):
+        return iter(self.datablock)
+
     def CalcSpecVol(self):
         for i in range(len(self.datablock)):
             #print(i)
@@ -270,6 +273,8 @@ if(__name__ == '__main__'):
     print(a_point.datablock)
     print(a_point.dm)
     print(fort19_data[15].spec_vol)
+    for cell_obj in fort19_data:
+            print(cell_obj.zone)
 
     #Testing Timeseries:
     #surface:
