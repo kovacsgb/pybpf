@@ -102,8 +102,8 @@ class DataPoint(BaseData):
     energy      - internal energy
     e_t         - turbulent energy
     entropy     - specific entropy
-    F_t         - turbulent flux
-    F_c         - convective flux
+    F_t         - turbulent luminosity
+    F_c         - convective luminosity
     pressure    - gas pressure in cell
     p_t         - turbulent pressure
     p_eddy      - viscous pressure of the cell
