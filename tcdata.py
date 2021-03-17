@@ -36,11 +36,14 @@ class BaseData:
             raise KeyError('There is no'+str(key)+'data member.')
     
     def insertColumn(self,data,columnnames):
-        if data is dict:
+        if isinstance(data,dict):
+            #print('dict')
             self.datablock.update(data)
         else:
+            #print(type(data))
             self.datablock.update(dict(zip(columnnames,data)))
         self.column_names += columnnames
+        return self
 
     def __getattr__(self,key):
         return self.data(key)
@@ -128,17 +131,19 @@ class DataPoint(BaseData):
         super().__init__(data,DataPoint.columnnames)
 
     @classmethod
-    def createDataPointList(cls):
-        return dict(zip(DataPoint.columnnames, [ list() for i in enumerate(cls.columnnames)]))
+    def createDataPointList(cls, Template = None):
+        return dict(zip(Template.column_names, [ list() for i in enumerate(Template.column_names)]))
     
     @classmethod
     def fillDataPointList(cls,datapoints : list):
         if not all(isinstance(x,cls) for x in datapoints):
             raise TypeError("datapoints should be a list of DataPoint")
-        datapoint_list=cls.createDataPointList()
+        template = datapoints[0]
+        datapoint_list=cls.createDataPointList(template)
         for point in datapoints:
-            for key in cls.columnnames:
-                datapoint_list[key].append(point.data(key))
+            for key in template.column_names:
+                data = point.data(key)
+                datapoint_list[key].append(data)
         for key in datapoint_list:
                 datapoint_list[key]=np.array(datapoint_list[key])
         return datapoint_list

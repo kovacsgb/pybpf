@@ -95,9 +95,10 @@ class IonizationData(tcdata.BaseData):
         return obj
 
     def injectToDataPoint(self, datapoint_obj : tcdata.DataPoint):
-        print(self.datablock)
-        print(datapoint_obj.datablock)
+        #print(self.datablock)
+        
         datapoint_obj.insertColumn(self.datablock,self.column_names)
+        #print(datapoint_obj.HII_fraction)
         return datapoint_obj
 
 class Ionization:
@@ -205,7 +206,21 @@ class Ionization:
 
     @staticmethod
     def IonizationForRawprofile(raw_obj : tcdata.RawProfiles,X,Y):
-        pass
+        calculator = Ionization(raw_obj[1],X,Y)
+        for cell_obj in raw_obj:
+            #print(cell_obj.zone)
+            if cell_obj.temperature <= 0:
+                iondata = IonizationData.initWithData(0,0,0)
+                iondata.injectToDataPoint(cell_obj)
+                continue        
+            calculator.Reload(cell_obj,X,Y)
+            x,y,z = calculator.Calculation()
+            iondata = IonizationData.initWithData(x,y,z)
+            iondata.injectToDataPoint(cell_obj)
+           # print(iondata.datablock)
+           # print(cell_obj.data('HeII_fraction'))
+        #print(raw_obj[15].HII_fraction)
+        return raw_obj
 class NewtonianIterator:
 
     def __init__(self,x0,y0,z0):
@@ -382,12 +397,12 @@ if __name__ == '__main__':
     #exit()
     from matplotlib import pyplot as plt
 
-    plt.plot(datablock[0],datablock[1], label = "x")
-    plt.plot(datablock[0],datablock[2], label = 'y')
-    plt.plot(datablock[0],datablock[3], label = 'z')
-    plt.legend()
-    plt.xlim(6000,1e5)
-    plt.show()
+    # plt.plot(datablock[0],datablock[1], label = "x")
+    # plt.plot(datablock[0],datablock[2], label = 'y')
+    # plt.plot(datablock[0],datablock[3], label = 'z')
+    # plt.legend()
+    # plt.xlim(6000,1e5)
+    # plt.show()
 
     a_point = tcdata.DataPoint("45\t136\t12\t50\t5.6\t2e5\t4.13e+29\t125.68\t1.25e40\t1.2e38\t12000\t1e29\t12e5\t1.5e4\t1e2\t0.98\n")
     ions_from_tc = Ionization(a_point,0.75,0.2496,1e-2,1e5)
@@ -395,3 +410,18 @@ if __name__ == '__main__':
     iondata = IonizationData.initWithData(x,y,z)
     a_point = iondata.injectToDataPoint(a_point)
     print(a_point.datablock)
+    fort19_path='/home/gabesz/SPHERLS_playground/bpf_konv/konv-b/fort.19'
+    fort19_data=tcdata.RawProfiles(fort19_path)
+    fort19_data = Ionization.IonizationForRawprofile(fort19_data,0.75,0.2496)
+    print(fort19_data[15].spec_vol)
+    fort19_handler = tcdata.LimitCycle(fort19_data)
+
+    for i in range(len(fort19_handler.profiles[2].HeII_fraction)):
+        print(fort19_handler.profiles[2].zone[i],fort19_handler.profiles[2].temperature[i],fort19_handler.profiles[2].HeII_fraction[i])
+
+    plt.plot(fort19_handler.profiles[2].temperature[2:147],fort19_handler.profiles[2].HII_fraction[2:147], label= 'HII')
+    plt.plot(fort19_handler.profiles[2].temperature[2:147],fort19_handler.profiles[2].HeII_fraction[2:147], label= 'HeII')
+    plt.plot(fort19_handler.profiles[2].temperature[2:147],fort19_handler.profiles[2].HeIII_fraction[2:147], label= 'HeIII')
+    plt.legend()
+    plt.xlim(6500,1e5)
+    plt.show()
