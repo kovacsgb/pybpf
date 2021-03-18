@@ -12,9 +12,11 @@ in Python.
 Created by: Gábor B. Kovács 2021
 """
 from astropy.constants import cgs
+from math import pi
 import numpy as np
 import astropy.constants as constants
 from astropy import units
+import calcion
 
 
 class BaseData:
@@ -34,6 +36,16 @@ class BaseData:
         else:
             raise KeyError('There is no'+str(key)+'data member.')
     
+    def insertColumn(self,data,columnnames):
+        if isinstance(data,dict):
+            #print('dict')
+            self.datablock.update(data)
+        else:
+            #print(type(data))
+            self.datablock.update(dict(zip(columnnames,data)))
+        self.column_names += columnnames
+        return self
+
     def __getattr__(self,key):
         return self.data(key)
     
@@ -102,8 +114,8 @@ class DataPoint(BaseData):
     energy      - internal energy
     e_t         - turbulent energy
     entropy     - specific entropy
-    F_t         - turbulent flux
-    F_c         - convective flux
+    F_t         - turbulent luminosity
+    F_c         - convective luminosity
     pressure    - gas pressure in cell
     p_t         - turbulent pressure
     p_eddy      - viscous pressure of the cell
@@ -120,17 +132,19 @@ class DataPoint(BaseData):
         super().__init__(data,DataPoint.columnnames)
 
     @classmethod
-    def createDataPointList(cls):
-        return dict(zip(DataPoint.columnnames, [ list() for i in enumerate(cls.columnnames)]))
+    def createDataPointList(cls, Template = None):
+        return dict(zip(Template.column_names, [ list() for i in enumerate(Template.column_names)]))
     
     @classmethod
     def fillDataPointList(cls,datapoints : list):
         if not all(isinstance(x,cls) for x in datapoints):
             raise TypeError("datapoints should be a list of DataPoint")
-        datapoint_list=cls.createDataPointList()
+        template = datapoints[0]
+        datapoint_list=cls.createDataPointList(template)
         for point in datapoints:
-            for key in cls.columnnames:
-                datapoint_list[key].append(point.data(key))
+            for key in template.column_names:
+                data = point.data(key)
+                datapoint_list[key].append(data)
         for key in datapoint_list:
                 datapoint_list[key]=np.array(datapoint_list[key])
         return datapoint_list
@@ -145,6 +159,7 @@ class RawProfiles:
         self.num_time_series=0
         self.num_profiles=0
         self.read_file(filename)
+        self.CalcSpecVol()
 
     def read_file(self,filename):
         infile=open(filename)
@@ -156,6 +171,26 @@ class RawProfiles:
 
     def __getitem__(self,key) -> DataPoint:
         return self.datablock[key]
+
+    def __iter__(self):
+        return iter(self.datablock)
+
+    def CalcSpecVol(self):
+        for i in range(len(self.datablock)):
+            #print(i)
+            r = self.datablock[i].radius
+            if self.datablock[i].zone == 1:
+                volume = 4 * r ** 3 * pi / 3
+                spec_vol = volume / self.datablock[i].mass
+            else:
+                r_nm1 = self.datablock[i-1].radius
+                volume = 4* pi /3 * ( r**3 - r_nm1 ** 3)
+                if self.datablock[i].dm != 0:
+                    spec_vol = volume / self.datablock[i].dm
+                else:
+                    spec_vol = volume / self.datablock[i-1].dm
+            self.datablock[i].insertColumn([spec_vol],tuple(['spec_vol']))
+
 
 
 
@@ -215,9 +250,18 @@ def bpfDataRead(path : str, **kwargs):
     """
     #TODO: It should be refactorized if it will be extended for other datafiles too.
     return_rawprofile = False
+    do_ionization = False
+    X = Y = 0.
     if "return_rawprofile" in kwargs:
         return_rawprofile = kwargs["return_rawprofile"]
-
+    if "do_ionization" in kwargs:
+        if 'X' in kwargs and 'Y' in kwargs:
+            do_ionization = kwargs["do_ionization"]
+            X=kwargs["X"]
+            Y=kwargs['Y']
+        else:
+            raise RuntimeError("No metallicity was given")
+        
     path_to_fort95 = path+"/fort.95"
     path_to_fort18 = path+"/fort.18"
     path_to_fort19 = path+"/fort.19"
@@ -225,6 +269,8 @@ def bpfDataRead(path : str, **kwargs):
     model_obj=Model(path_to_fort95)
     history_obj=History(path_to_fort18)
     rawprofile_obj=RawProfiles(path_to_fort19)
+    if (do_ionization):
+        rawprofile_obj = calcion.Ionization.IonizationForRawprofile(rawprofile_obj,X,Y)
     limitcycle_obj=LimitCycle(rawprofile_obj)
     if return_rawprofile:
         return model_obj,history_obj,limitcycle_obj,rawprofile_obj
@@ -243,7 +289,9 @@ if(__name__ == '__main__'):
     fort19_data=RawProfiles(fort19_path)
     print(a_point.datablock)
     print(a_point.dm)
-    print(fort19_data[15].zone)
+    print(fort19_data[15].spec_vol)
+    for cell_obj in fort19_data:
+            print(cell_obj.zone)
 
     #Testing Timeseries:
     #surface:
