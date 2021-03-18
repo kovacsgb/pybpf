@@ -1,13 +1,17 @@
-#Calculate ionisation fractions
-#
-# v 0.1
+"""
+Module containing all necessary calculations, functions and classes, for ionization calculations from
+Budapest-Florida code output.
+
+It uses the interface given in tcdata.py module.
+
+Most important feature is:
+
+Ionization.IonizationForRawprofile static method calculates ionization for given rawProfile object.
+
+"""
 #TODO:
-# - Refactor iterations to OOP
-# - interface with tcdata module
 # - Callable functions from outside
 # - Testing utilites
-# - Deleting unneded imports and ineffective attempts
-# - Refactor again with the working tests above
 
 
 from math import pi
@@ -23,7 +27,10 @@ class IterationError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
-class Constants:
+class ConstantsCalculator:
+    """
+    Class calculating the right hand side of Saha equations.
+    """
     R_HII = 0.0
     R_HeII = 0.0
     R_HeIII = 0.0
@@ -34,6 +41,17 @@ class Constants:
     X=0.75
     Y=0.2499
 
+    def __init__(self, X=0, Y=0):
+        self.R_HII = 0.0
+        self.R_HeII = 0.0
+        self.R_HeIII = 0.0
+        self.n_H = 0.0
+        self.n_He = 0.0
+        self.M_He = 6.6464764e-24
+        self.M_H = 1.6735575e-24
+        self.X=X
+        self.Y=Y
+
     #@staticmethod
     def RHS_calc(self, T, khi, g_factor):
         m_e = consts.m_e.cgs.value
@@ -42,46 +60,48 @@ class Constants:
         RHS = (2 * pi * m_e * k_B * T) ** 1.5 / h ** 3 * g_factor * exp(-khi / k_B / T)
         return RHS
 
-    @classmethod
-    def Calc_R_HII(cls, Temp):
+    
+    def Calc_R_HII(self, Temp):
         khi = 13.54 * u.eV
-        Constants.R_HII = cls.RHS_calc(cls , Temp, khi.to_value(u.erg), 1 )
+        self.R_HII = self.RHS_calc(Temp, khi.to_value(u.erg), 1 )
         return None
     
-    @classmethod
-    def Calc_R_HeII(cls, Temp):
+    
+    def Calc_R_HeII(self, Temp):
         khi = 24.48 * u.eV
-        Constants.R_HeII = cls.RHS_calc(cls, Temp, khi.to_value(u.erg), 4 )
+        self.R_HeII = self.RHS_calc(Temp, khi.to_value(u.erg), 4 )
         return None
 
-    @classmethod
-    def Calc_R_HeIII(cls, Temp):
+    
+    def Calc_R_HeIII(self, Temp):
         khi = 54.17 * u.eV
-        Constants.R_HeIII = cls.RHS_calc(cls, Temp, khi.to_value(u.erg), 1 )
+        self.R_HeIII = self.RHS_calc(Temp, khi.to_value(u.erg), 1 )
         return None
 
-    @classmethod
-    def Calc_n_H(cls, rho):
-        cls.n_H = cls.X * rho / cls.M_H
+    
+    def Calc_n_H(self, rho):
+        self.n_H = self.X * rho / self.M_H
         return None
     
-    @classmethod
-    def Calc_n_He(cls, rho):
-        cls.n_He = cls.Y * rho / cls.M_He
+    
+    def Calc_n_He(self, rho):
+        self.n_He = self.Y * rho / self.M_He
         return None
 
-    @classmethod
-    def Calc_consts(cls,rho,Temp):
-        cls.Calc_n_H(rho)
-        cls.Calc_n_He(rho)
-        cls.Calc_R_HII(Temp)
-        cls.Calc_R_HeII(Temp)
-        cls.Calc_R_HeIII(Temp)
+    
+    def Calc_consts(self,rho,Temp):
+        self.Calc_n_H(rho)
+        self.Calc_n_He(rho)
+        self.Calc_R_HII(Temp)
+        self.Calc_R_HeII(Temp)
+        self.Calc_R_HeIII(Temp)
         return None
 
 
 class IonizationData(tcdata.BaseData):
-    
+    """
+    Class which communicates with tcdata objects.
+    """
     def __init__(self):
         ionization_columnnames = ('HII_fraction','HeII_fraction','HeIII_fraction')
         super().__init__(dict(zip(ionization_columnnames,[0,0,0])),ionization_columnnames)
@@ -102,18 +122,21 @@ class IonizationData(tcdata.BaseData):
         return datapoint_obj
 
 class Ionization:
-    
+    """
+    Class mainly responsible for ionization calculations.
+    """
     def __init__(self,tc_cell_object : tcdata.DataPoint,X,Y,rho=None,T=None ):
+        self.Constants = ConstantsCalculator(X,Y)
         self.x = 0
         self.y = 0
         self.z = 0
         self.tc_object = tc_cell_object
-        Constants.X = X
-        Constants.Y = Y
+        self.Constants.X = X
+        self.Constants.Y = Y
         if rho is None or T is None:
-            Constants.Calc_consts(1/self.tc_object.spec_vol,self.tc_object.temperature)      
+            self.Constants.Calc_consts(1/self.tc_object.spec_vol,self.tc_object.temperature)      
         else:
-            Constants.Calc_consts(rho,T)
+            self.Constants.Calc_consts(rho,T)
 
     @staticmethod
     def diff(x1,y1,z1,x2,y2,z2):
@@ -137,16 +160,16 @@ class Ionization:
         """
         x = y = z = 0
 
-        b_x = Constants.R_HII / Constants.n_H
-        c_x = - Constants.R_HII / Constants.n_H
+        b_x = self.Constants.R_HII / self.Constants.n_H
+        c_x = - self.Constants.R_HII / self.Constants.n_H
         x = self.__CalcSecondOrder(b_x, c_x)
 
-        b_y = (x* Constants.n_H + Constants.R_HeII) / Constants.n_He
-        c_y = - Constants.R_HeII / Constants.n_He
+        b_y = (x* self.Constants.n_H + self.Constants.R_HeII) / self.Constants.n_He
+        c_y = - self.Constants.R_HeII / self.Constants.n_He
         y = self.__CalcSecondOrder(b_y,c_y)
 
-        b_z = (x* Constants.n_H + Constants.n_He + Constants.R_HeIII) / Constants.n_He
-        c_z = - Constants.R_HeIII / Constants.n_He
+        b_z = (x* self.Constants.n_H + self.Constants.n_He + self.Constants.R_HeIII) / self.Constants.n_He
+        c_z = - self.Constants.R_HeIII / self.Constants.n_He
 
         z = self.__CalcSecondOrder(b_z, c_z)
         #print(x,y,z)
@@ -158,18 +181,18 @@ class Ionization:
         Here we calcute frist z and after that y, because 1-y-z < 0 or should use only 1-y?
         """
 
-        b_x = (y0 * Constants.n_He + 2 * z0 * Constants.n_He + Constants.R_HII) / Constants.n_H
-        c_x = - Constants.R_HII / Constants.n_H
+        b_x = (y0 * self.Constants.n_He + 2 * z0 * self.Constants.n_He + self.Constants.R_HII) / self.Constants.n_H
+        c_x = - self.Constants.R_HII / self.Constants.n_H
 
 
 
-        b_y = (x0* Constants.n_H + Constants.R_HeII + 2 * z0 * Constants.n_He) / Constants.n_He
-        c_y = (z0 - 1) * Constants.R_HeII / Constants.n_He
+        b_y = (x0* self.Constants.n_H + self.Constants.R_HeII + 2 * z0 * self.Constants.n_He) / self.Constants.n_He
+        c_y = (z0 - 1) * self.Constants.R_HeII / self.Constants.n_He
 
         y = self.__CalcSecondOrder(b_y,c_y)
 
-        b_z = (x0* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
-        c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
+        b_z = (x0* self.Constants.n_H + y * self.Constants.n_He) / (2 * self.Constants.n_He)
+        c_z = - y * self.Constants.R_HeIII / (2* self.Constants.n_He)
 
         x = self.__CalcSecondOrder(b_x, c_x)
         
@@ -180,10 +203,13 @@ class Ionization:
         return x,y,z
 
     def Calculation(self):
+        """
+        The calculation of the ionization fractions.
+        """
         x,y,z = self.__FirstIteration()
         x,y,z = self.__SecondIteration(x,y,z)
 
-        next_iterations = NewtonianIterator(x,y,z)
+        next_iterations = NewtonianIterator(x,y,z,self.Constants)
         x,y,z = next_iterations.NewtonianIteration()
 
         self.x = x
@@ -197,12 +223,12 @@ class Ionization:
         self.y = 0
         self.z = 0
         self.tc_object = tc_cell_object
-        Constants.X = X
-        Constants.Y = Y
+        self.Constants.X = X
+        self.Constants.Y = Y
         if rho is None or T is None:
-            Constants.Calc_consts(1/self.tc_object.spec_vol,self.tc_object.temperature)      
+            self.Constants.Calc_consts(1/self.tc_object.spec_vol,self.tc_object.temperature)      
         else:
-            Constants.Calc_consts(rho,T)
+            self.Constants.Calc_consts(rho,T)
 
     @staticmethod
     def IonizationForRawprofile(raw_obj : tcdata.RawProfiles,X,Y):
@@ -222,8 +248,12 @@ class Ionization:
         #print(raw_obj[15].HII_fraction)
         return raw_obj
 class NewtonianIterator:
+    """
+    Helper class for Newton iterations.
+    """
 
-    def __init__(self,x0,y0,z0):
+    def __init__(self,x0,y0,z0,_Constants : ConstantsCalculator):
+        self.Constants = _Constants
         self.__x_vec_n = np.array([x0,y0,z0])
         self.__x_vec_np1 = np.array([x0,x0,x0])
 
@@ -233,13 +263,13 @@ class NewtonianIterator:
         y = x_vec[1]
         z = x_vec[2]
 
-        b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
-        c_x = - Constants.R_HII / Constants.n_H
+        b_x = (y * self.Constants.n_He + 2 * z * self.Constants.n_He + self.Constants.R_HII) / self.Constants.n_H
+        c_x = - self.Constants.R_HII / self.Constants.n_H
 
-        b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
-        c_y = (z - 1) * Constants.R_HeII / Constants.n_He
-        b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)
-        c_z = - y * Constants.R_HeIII / (2* Constants.n_He)
+        b_y = (x* self.Constants.n_H + self.Constants.R_HeII + 2 * z * self.Constants.n_He) / self.Constants.n_He
+        c_y = (z - 1) * self.Constants.R_HeII / self.Constants.n_He
+        b_z = (x* self.Constants.n_H + y * self.Constants.n_He) / (2 * self.Constants.n_He)
+        c_z = - y * self.Constants.R_HeIII / (2* self.Constants.n_He)
 
         fvec = np.array(
             [x ** 2 + x * b_x  + c_x,
@@ -256,17 +286,17 @@ class NewtonianIterator:
         y = x_vec[1]
         z = x_vec[2]
 
-        b_x = (y * Constants.n_He + 2 * z * Constants.n_He + Constants.R_HII) / Constants.n_H
+        b_x = (y * self.Constants.n_He + 2 * z * self.Constants.n_He + self.Constants.R_HII) / self.Constants.n_H
 
-        b_y = (x* Constants.n_H + Constants.R_HeII + 2 * z * Constants.n_He) / Constants.n_He
+        b_y = (x* self.Constants.n_H + self.Constants.R_HeII + 2 * z * self.Constants.n_He) / self.Constants.n_He
         
-        b_z = (x* Constants.n_H + y * Constants.n_He) / (2 * Constants.n_He)        
+        b_z = (x* self.Constants.n_H + y * self.Constants.n_He) / (2 * self.Constants.n_He)        
 
         thejacobian = np.array(
             [
-            [2 *x + b_x,  x * Constants.n_He/Constants.n_H, 2* x *Constants.n_He / Constants.n_H],
-            [y * Constants.n_H / Constants.n_He, 2*y + b_y, 2 * y + Constants.R_HeII / Constants.n_He] ,
-            [0.5 *z * Constants.n_H / Constants.n_He, 0.5 * (z - Constants.R_HeIII / Constants.n_He), 2*z + b_z]
+            [2 *x + b_x,  x * self.Constants.n_He/self.Constants.n_H, 2* x *self.Constants.n_He / self.Constants.n_H],
+            [y * self.Constants.n_H / self.Constants.n_He, 2*y + b_y, 2 * y + self.Constants.R_HeII / self.Constants.n_He] ,
+            [0.5 *z * self.Constants.n_H / self.Constants.n_He, 0.5 * (z - self.Constants.R_HeIII / self.Constants.n_He), 2*z + b_z]
             ]
         )
         return thejacobian
@@ -297,7 +327,6 @@ class NewtonianIterator:
 
 if __name__ == '__main__':
 
-    Constants.Calc_R_HeII(15000)
 
     infile = open("adat_ready.txt", "r")
 
@@ -327,7 +356,7 @@ if __name__ == '__main__':
         T = line[10] # adat_ready.txt
         if T <= 0:
             continue
-        Constants.Calc_consts(rho, T)
+        
 
         datablock[0].append(T)
         # x0,y0,z0 = FirstIteration()
