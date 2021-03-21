@@ -12,7 +12,7 @@ Ionization.IonizationForRawprofile static method calculates ionization for given
 #TODO:
 # - Callable functions from outside
 # - Testing utilites
-
+# - resolve circular dependencies
 
 from math import pi
 from math import exp
@@ -21,7 +21,13 @@ import astropy.constants as consts
 import astropy.units as u
 from astropy.units.core import _recreate_irreducible_unit
 import numpy as np
-import tcdata
+#from . import tcdata as tcdata
+#import __init__
+#import tcdata.tcdata as tcdata
+try:
+    from . import tcdata as tcdata
+except (SystemError,ImportError):
+    import tcdata as tcdata
 
 class IterationError(Exception):
     def __init__(self, *args: object) -> None:
