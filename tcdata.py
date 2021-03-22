@@ -74,7 +74,7 @@ class History(BaseData):
             for i in range(0,len(dataLines[0].split())):
                 columns.append([float(x.split()[i]) for x in dataLines])
                 columns[i]=np.array(columns[i])
-
+            datafile.close()
             return dict(zip(self.columnnames,columns)), self.columnnames
 
             
@@ -96,6 +96,7 @@ class Model(BaseData):
         for i in range(0,len(dataLines[0].split())-1):
             columns.append([float(x.split()[i].replace('D','E')) for x in dataLines])
             columns[i]=np.array(columns[i])
+        datafile.close()
         return dict(zip(self.columnnames,columns)), self.columnnames
 
 
@@ -249,8 +250,8 @@ if(__name__ == '__main__'):
     print(a_point.datablock)
     print(a_point.dm)
     print(fort19_data[15].spec_vol)
-    for cell_obj in fort19_data:
-            print(cell_obj.zone)
+  #  for cell_obj in fort19_data:
+            #print(cell_obj.zone)
 
     #Testing Timeseries:
     #surface:
@@ -285,7 +286,7 @@ if(__name__ == '__main__'):
 
 
     #Testing reader
-    mod,his,lim = bpfDataRead("/home/gabesz/SPHERLS_playground/bpf_konv/konv-b/",do_ionization=True,X=0.75,Y=0.246)
+    
 
     #Other tests
     print(len(lim.profiles), lim.num_profiles)

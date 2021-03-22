@@ -27,6 +27,7 @@ import numpy as np
 try:
     from . import tcdata as tcdata
 except (SystemError,ImportError):
+    #this should be removed when all tests are defined in tests
     import tcdata as tcdata
 
 class IterationError(Exception):

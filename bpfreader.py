@@ -1,5 +1,11 @@
-from .tcdata import *
-from .calcion import *
+try:
+    from .tcdata import *
+    from .calcion import *
+except:
+    from tcdata import *
+    from  calcion import *
+
+
 
 def bpfDataRead(path : str, **kwargs):
     """
@@ -8,6 +14,14 @@ def bpfDataRead(path : str, **kwargs):
     Additionally it returns a RawProfile object too.
     Other keywords:
     return_rawprofile -> if true it returns the RawProfile object too
+
+    kwargs (default value in the parenthesis):
+    ------
+
+    return_rawprofile : Returning the raw profile object too (False)
+    do_ionization     : Calculate ionization fractions. Needs mettalicity parameters, X and Y too (False)
+    X                 : Total hidrogen mass fraction, needed for ionization calculations (None)
+    Y                 : Total helium mass fraction, needed for ionization calculations (None)
     """
     #TODO: It should be refactorized if it will be extended for other datafiles too.
     return_rawprofile = False
