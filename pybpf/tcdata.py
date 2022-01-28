@@ -141,14 +141,18 @@ class DataPoint(BaseData):
     def fillDataPointList(cls,datapoints : list):
         if not all(isinstance(x,cls) for x in datapoints):
             raise TypeError("datapoints should be a list of DataPoint")
-        template = datapoints[0]
-        datapoint_list=cls.createDataPointList(template)
-        for point in datapoints:
-            for key in template.column_names:
-                data = point.data(key)
-                datapoint_list[key].append(data)
-        for key in datapoint_list:
-                datapoint_list[key]=np.array(datapoint_list[key])
+        #template = datapoints[0]
+        #datapoint_list=cls.createDataPointList(template)
+        #for point in datapoints:
+        #    for key in template.column_names:
+        #        data = point.data(key)
+        #        datapoint_list[key].append(data)
+        #for key in datapoint_list:
+        #        datapoint_list[key]=np.array(datapoint_list[key])
+        datas = [x.datablock for x in datapoints]
+        datapoint_list = {key: np.array([data[key] for data in datas]) for key in datas[0] }
+        #datapoint_list = pd.DataFrame(datas)
+        #datapoint_list = datapoint_list.to_dict()
         return datapoint_list
 
 
@@ -168,7 +172,17 @@ class RawProfiles:
         #lines = infile.readlines()
         #self.datablock = [DataPoint(line) for line in lines]
         datafile=pd.read_csv(filename,sep='\s+', engine='c',header=None,names=DataPoint.columnnames)
-        self.datablock = [ DataPoint(line.to_dict()) for idx, line in datafile.iterrows()]
+        #self.datablock = [ DataPoint(line.to_dict()) for idx, line in datafile.iterrows()]
+        datablock=datafile.to_numpy()#.pivot().values#pd.pivot_table(datafile).values
+        #for idx in range(len(datafile)):
+        #    line=datafile.iloc[idx]
+        #    row=line.to_dict()
+        #    point=DataPoint(row)
+        #    datablock.append(point)
+        #self.datablock=datablock
+        #self.datablock=[ DataPoint(row) for row in datafile.to_dict('records')]
+        self.datablock = [ DataPoint(dict(zip(DataPoint.columnnames,datablock[idx,:]))) for idx in range(datablock.shape[0])]
+
         self.num_time_series = int(self.datablock[-1].zone)
         self.num_profiles = int(self.datablock[-1].phase)
         #infile.close()
@@ -221,7 +235,8 @@ class Profiles(BaseData):
         super().__init__(self.createProfile(rawprofile_obj,phase_number),DataPoint.columnnames)
     
     def createProfile(self,rawprofile_obj : RawProfiles,phase_number):
-        datapoints=[point for point in rawprofile_obj if point.phase == phase_number]
+        #datapoints=[point for point in rawprofile_obj if point.phase == phase_number]
+        datapoints=[point for point in rawprofile_obj.datablock[phase_number*rawprofile_obj.num_time_series:(phase_number+1)*rawprofile_obj.num_time_series]]
         data=DataPoint.fillDataPointList(datapoints)
         return data
 
@@ -238,8 +253,8 @@ class LimitCycle:
             rawdata = infile_name
         else:
             raise TypeError("Parameter should be either string or RawProfile object.")
-        self.timeSeries=[TimeSeries(rawdata,zone_number) for zone_number in range(1,rawdata.num_time_series+1)]
-        self.profiles=[Profiles(rawdata,phase_number) for phase_number in range(1,rawdata.num_profiles+1)]
+        self.timeSeries=[TimeSeries(rawdata,zone_number) for zone_number in range(0,rawdata.num_time_series)]
+        self.profiles=[Profiles(rawdata,phase_number) for phase_number in range(0,rawdata.num_profiles)]
         self.num_time_series = len(self.timeSeries)
         self.num_profiles=len(self.profiles)
 
@@ -247,6 +262,7 @@ class LimitCycle:
 if(__name__ == '__main__'):
     from matplotlib import pyplot as plt
     import math
+    from line_profiler import LineProfiler
     a_point = DataPoint("45\t136\t12\t50\t5.6\t2e5\t4.13e+29\t125.68\t1.25e40\t1.2e38\t12000\t1e29\t12e5\t1.5e4\t1e2\t0.98\n")
     fort19_path='/home/gabesz/SPHERLS_playground/bpf_konv/konv-b/fort.19'#'/home/gabesz/Dokumentumok/VS_Code_workspace/calcion/fort.19'
     fort19_data=RawProfiles(fort19_path)
@@ -266,10 +282,22 @@ if(__name__ == '__main__'):
     #plt.plot(surface_series.phase/77.,surface_series.F_r/constants.L_sun.cgs)
     
     aProfile=Profiles(fort19_data,1)
-
+    lp = LineProfiler()
+    #lp_wrapper=lp(LimitCycle.__init__)
+    #lp_wrapper(fort19_path)
+    lp.add_function(LimitCycle.__init__)
+    lp.add_function(RawProfiles.read_file)
+    lp.add_function(Profiles.createProfile)
+    lp.add_function(RawProfiles.__init__)
+    lp.enable_by_count()
     fort19_handler=LimitCycle(fort19_path)
+    lp.print_stats()
+    print([ fort19_handler.timeSeries[serie].zone[0] for serie in [0,1,-3,-2,-1]])
+    print([ fort19_handler.profiles[serie].phase for serie in [0,1,-2,-1]])
+    print([ fort19_handler.profiles[serie].zone for serie in [1]])
+    #fort19_handler=LimitCycle(fort19_path)
 
-    for phase in range(0):#,len(fort19_handler.profiles)):
+    for phase in range(1,len(fort19_handler.profiles)):
         #phase=40
         ts_xdata=fort19_handler.timeSeries[fort19_handler.num_time_series-2].phase
         ts_ydata=fort19_handler.timeSeries[fort19_handler.num_time_series-2].L_r
