@@ -16,6 +16,7 @@ from math import pi
 import numpy as np
 import astropy.constants as constants
 from astropy import units
+import pandas as pd
 #import calcion
 #from . import calcion
 
@@ -125,10 +126,10 @@ class DataPoint(BaseData):
     columnnames=('phase','zone','velocity','L_r','radius','temperature','dm','opacity','energy','e_t','entropy',
                 'F_t','F_c','pressure','p_t','p_eddy','mass')
 
-    def __init__(self,Line : str):
-        #TODO: d D e E csere!
-
-        data=dict(zip(DataPoint.columnnames,[float(x.translate({"d": "e","D" : "e"})) for x in Line.split()]))
+    def __init__(self,data):
+        
+        #for backward compatibility:
+        if isinstance(data,str): data=dict(zip(DataPoint.columnnames,[float(x.translate({"d": "e","D" : "e"})) for x in data.split()]))
         #for x in Line.split(): print(float(x))
         super().__init__(data,DataPoint.columnnames)
 
@@ -163,12 +164,14 @@ class RawProfiles:
         self.CalcSpecVol()
 
     def read_file(self,filename):
-        infile=open(filename)
-        lines = infile.readlines()
-        self.datablock = [DataPoint(line) for line in lines]
+        #infile=open(filename)
+        #lines = infile.readlines()
+        #self.datablock = [DataPoint(line) for line in lines]
+        datafile=pd.read_csv(filename,sep='\s+', engine='c',header=None,names=DataPoint.columnnames)
+        self.datablock = [ DataPoint(line.to_dict()) for idx, line in datafile.iterrows()]
         self.num_time_series = int(self.datablock[-1].zone)
         self.num_profiles = int(self.datablock[-1].phase)
-        infile.close()
+        #infile.close()
 
     def __getitem__(self,key) -> DataPoint:
         return self.datablock[key]
@@ -289,4 +292,4 @@ if(__name__ == '__main__'):
     
 
     #Other tests
-    print(len(lim.profiles), lim.num_profiles)
+    print(len(fort19_handler.profiles), fort19_handler.num_profiles)
