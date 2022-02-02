@@ -47,6 +47,13 @@ class BaseData:
         self.column_names += columnnames
         return self
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def __getattr__(self,key):
         return self.data(key)
     
@@ -297,7 +304,7 @@ if(__name__ == '__main__'):
     print([ fort19_handler.profiles[serie].zone for serie in [1]])
     #fort19_handler=LimitCycle(fort19_path)
 
-    for phase in range(1,len(fort19_handler.profiles)):
+    for phase in range(0):#1,len(fort19_handler.profiles)):
         #phase=40
         ts_xdata=fort19_handler.timeSeries[fort19_handler.num_time_series-2].phase
         ts_ydata=fort19_handler.timeSeries[fort19_handler.num_time_series-2].L_r
@@ -321,3 +328,21 @@ if(__name__ == '__main__'):
 
     #Other tests
     print(len(fort19_handler.profiles), fort19_handler.num_profiles)
+
+    #pickle test
+    import pickle
+
+    test_fort = LimitCycle(fort19_path)
+    #print(test_fort.__dict__)
+    #print(test_fort.__dir__())
+
+
+    with open('testfile','wb') as f:
+        pickle.dump(test_fort,f)
+    
+    unpickled = None
+    with open('testfile','rb') as f:
+        unpcikled = pickle.load(f)
+
+
+
