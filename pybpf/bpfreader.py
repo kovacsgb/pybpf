@@ -32,8 +32,9 @@ def bpfDataRead(path : str, **kwargs):
     if "do_ionization" in kwargs:
         if 'X' in kwargs and 'Y' in kwargs:
             do_ionization = kwargs["do_ionization"]
-            X=kwargs["X"]
-            Y=kwargs['Y']
+            if do_ionization: 
+                X=kwargs["X"]
+                Y=kwargs['Y']
         else:
             raise RuntimeError("No metallicity was given")
         
