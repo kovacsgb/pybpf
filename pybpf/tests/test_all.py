@@ -75,4 +75,15 @@ class TestBPFReader(unittest.TestCase):
 
 
 if (__name__ == '__main__'):
-    unittest.main(verbosity=2)
+    unittest.main(verbosity=2,exit=False)
+
+    from line_profiler import LineProfiler
+    print('======Profiling=======')
+    lp = LineProfiler()
+    lp.add_function(bpfDataRead)
+    lp.add_function(tcdata.Model.__init__)
+    lp.add_function(tcdata.History.__init__)
+    lp.add_function(tcdata.LimitCycle.__init__)
+    lp.enable_by_count()
+    mod,his,lim = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'))
+    lp.print_stats()

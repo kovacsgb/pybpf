@@ -70,8 +70,11 @@ class History(BaseData):
     """
     columnnames=('time','vel_rad','L_phot','radius','L_surf') 
     def __init__(self,path):
-        data,colnames=self.read_data(path)
-        super().__init__(data,colnames)
+        #data,colnames=self.read_data(path)
+        datablock = pd.read_csv(path,sep='\s+',engine='c',header=None,names=History.columnnames).to_numpy()
+        data = {History.columnnames[i] : datablock[:,i] for i in range(len(History.columnnames))}
+
+        super().__init__(data,History.columnnames)
         
 
     def read_data(self,path):
