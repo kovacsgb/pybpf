@@ -11,6 +11,7 @@ in Python.
 
 Created by: Gábor B. Kovács 2021
 """
+from aenum import enum
 from astropy.constants import cgs
 from math import pi
 import numpy as np
@@ -204,21 +205,40 @@ class RawProfiles:
         return iter(self.datablock)
 
     def CalcSpecVol(self):
-        for i in range(len(self.datablock)):
+        #for i in range(len(self.datablock)):
             #print(i)
-            r = self.datablock[i].radius
-            if self.datablock[i].zone == 1:
-                volume = 4 * r ** 3 * pi / 3
-                spec_vol = volume / self.datablock[i].mass
-            else:
-                r_nm1 = self.datablock[i-1].radius
-                volume = 4* pi /3 * ( r**3 - r_nm1 ** 3)
-                if self.datablock[i].dm != 0:
-                    spec_vol = volume / self.datablock[i].dm
-                else:
-                    spec_vol = volume / self.datablock[i-1].dm
-            self.datablock[i].insertColumn([spec_vol],tuple(['spec_vol']))
+        #    r = self.datablock[i].radius
+        #    if self.datablock[i].zone == 1:
+        #        volume = 4 * r ** 3 * pi / 3
+        #        spec_vol = volume / self.datablock[i].mass
+        #    else:
+        #        r_nm1 = self.datablock[i-1].radius
+        #        volume = 4* pi /3 * ( r**3 - r_nm1 ** 3)
+        #        if self.datablock[i].dm != 0:
+        #            spec_vol = volume / self.datablock[i].dm
+        #        else:
+        #            spec_vol = volume / self.datablock[i-1].dm
+        #    self.datablock[i].insertColumn([spec_vol],tuple(['spec_vol']))
+        r = np.array([data.datablock['radius'] for data in self.datablock])
+        m = np.array([data.datablock['dm'] for data in self.datablock])
+        spec_vol_all = np.zeros(len(self.datablock))
+        piconst= 4 * np.pi / 3.
+        for i in range(self.num_profiles):
+            ts = self.num_time_series
+            index=i * ts
+            spec_vol0 = r[index] **3 * piconst / m[index]
+            spec_volj = piconst * (r[index+1:index+ts-1] ** 3- r[index:index+ts-2] ** 3) / m[index+1:index+ts-1]
+            spec_voln = piconst * (r[index+ts-2] **3 - r[index+ts-3] ** 3) / m[index+ts-2]
+            spec_vol = np.insert(spec_volj,[0,-1],[spec_vol0,spec_voln])
+            spec_vol_all[index:index+ts] = spec_vol
 
+        updated_column_names=self.datablock[0].column_names + tuple(['spec_vol'])
+        for i,v in enumerate(spec_vol_all):
+            #print(i,i//self.num_time_series,i-(i//self.num_time_series*self.num_time_series),v)
+            datapoint=self.datablock[i]
+            datapoint.datablock.update({'spec_vol' : v})
+            datapoint.column_names = tuple(updated_column_names)
+            self.datablock[i] = datapoint
 
 
 
@@ -307,17 +327,17 @@ if(__name__ == '__main__'):
     print([ fort19_handler.profiles[serie].zone for serie in [1]])
     #fort19_handler=LimitCycle(fort19_path)
 
-    for phase in range(0):#1,len(fort19_handler.profiles)):
+    for phase in range(1):#1,len(fort19_handler.profiles)):
         #phase=40
         ts_xdata=fort19_handler.timeSeries[fort19_handler.num_time_series-2].phase
         ts_ydata=fort19_handler.timeSeries[fort19_handler.num_time_series-2].L_r
         xdata=fort19_handler.profiles[phase].zone
-        ydata=fort19_handler.profiles[phase].F_c
+        ydata=fort19_handler.profiles[phase].spec_vol
         #print(xdata,ydata)
         plt.subplot(2,1,1)
-        plt.plot(xdata,ydata/constants.L_sun.cgs)
-        plt.plot(xdata,fort19_handler.profiles[phase].L_r/constants.L_sun.cgs)
-        plt.plot(xdata,fort19_handler.profiles[phase].F_t/constants.L_sun.cgs)
+        plt.plot(xdata,ydata)#/constants.L_sun.cgs)
+        #plt.plot(xdata,fort19_handler.profiles[phase].L_r/constants.L_sun.cgs)
+        #plt.plot(xdata,fort19_handler.profiles[phase].F_t/constants.L_sun.cgs)
         #plt.plot(aProfile.zone[1:146],mylog(aProfile.temperature[1:146]))
         plt.subplot(2,1,2)
         plt.plot(ts_xdata/77,ts_ydata/constants.L_sun.cgs)
