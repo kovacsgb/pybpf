@@ -70,8 +70,13 @@ class TestBPFReader(unittest.TestCase):
         self.assertIsInstance(lim,tcdata.LimitCycle)
     def test_ionization_error(self):
         self.assertRaises(RuntimeError,bpfDataRead,self.TEST_DIR,do_ionization=True)
-
-
+class TestPhaseCalculations(unittest.TestCase):
+    TEST_DIR=os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles')
+    def test_fillPhasefromHistory(self):
+        mod,his,lim, raw = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'),return_rawprofile = True)
+        lim = tcdata.LimitCycle(raw.fillPhaseWithHistoryTime(his))
+        for num1,num2 in zip(lim.timeSeries[-1].phase,his.time[-lim.num_profiles:]):
+            self.assertAlmostEqual(num1,num2)
 
 
 if (__name__ == '__main__'):
@@ -86,5 +91,8 @@ if (__name__ == '__main__'):
     lp.add_function(tcdata.LimitCycle.__init__)
     lp.add_function(tcdata.RawProfiles.CalcSpecVol)
     lp.enable_by_count()
-    mod,his,lim = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'))
+    
     lp.print_stats()
+
+
+    

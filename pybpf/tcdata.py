@@ -72,7 +72,7 @@ class History(BaseData):
     columnnames=('time','vel_rad','L_phot','radius','L_surf') 
     def __init__(self,path):
         #data,colnames=self.read_data(path)
-        datablock = pd.read_csv(path,sep='\s+',engine='c',header=None,names=History.columnnames).to_numpy()
+        datablock = pd.read_csv(path,sep='\s+',engine='c',header=None,names=History.columnnames,usecols=[0,1,2,3,4]).to_numpy()
         data = {History.columnnames[i] : datablock[:,i] for i in range(len(History.columnnames))}
 
         super().__init__(data,History.columnnames)
@@ -167,6 +167,7 @@ class DataPoint(BaseData):
         return datapoint_list
 
 
+
 class RawProfiles:
     """
     Container holding DataPoints extracted from fort.19
@@ -240,6 +241,22 @@ class RawProfiles:
             datapoint.column_names = tuple(updated_column_names)
             self.datablock[i] = datapoint
 
+    def fillPhaseWithHistoryTime(self, his : History):
+        """
+        Fills the phase column with time data from the corresponding History object.
+        It can be used for get correct phase informations when a period is given.
+        ### Arguments:
+            his:    History object, whoose time data will be used
+
+        ### Returns:
+            The caller object
+        """
+        time_data = his.time[-self.num_profiles:]
+        for i,time in enumerate(time_data):
+            for j in range(self.num_time_series):
+                self.datablock[i*self.num_time_series+j].datablock['phase'] = time
+
+        return self
 
 
 class TimeSeries(BaseData):
