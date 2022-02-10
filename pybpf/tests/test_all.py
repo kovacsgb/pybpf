@@ -96,6 +96,14 @@ class TestPhaseCalculations(unittest.TestCase):
             self.assertGreaterEqual(1.,num)
             self.assertGreaterEqual(num,0.)
 
+    def test_bpfReader_with_period(self):
+        theperiod =  1.36133201636715 ** -1
+        mod,his,lim = bpfDataRead(self.TEST_DIR,period=theperiod)
+        self.assertIsInstance(lim,tcdata.LimitCycle)
+        for num in lim.timeSeries[-1].phase:
+            self.assertGreaterEqual(1.,num)
+            self.assertGreaterEqual(num,0.)      
+
 
 if (__name__ == '__main__'):
     unittest.main(verbosity=2,exit=False)

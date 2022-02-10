@@ -22,22 +22,27 @@ def bpfDataRead(path : str, **kwargs):
     do_ionization     : Calculate ionization fractions. Needs mettalicity parameters, X and Y too (False)
     X                 : Total hidrogen mass fraction, needed for ionization calculations (None)
     Y                 : Total helium mass fraction, needed for ionization calculations (None)
+    period            : If given, phase data in Limitcycle instance will be corrected to this period
     """
     #TODO: It should be refactorized if it will be extended for other datafiles too.
     return_rawprofile = False
     do_ionization = False
     X = Y = 0.
+    period=None
     if "return_rawprofile" in kwargs:
         return_rawprofile = kwargs["return_rawprofile"]
     if "do_ionization" in kwargs:
-        if 'X' in kwargs and 'Y' in kwargs:
-            do_ionization = kwargs["do_ionization"]
-            if do_ionization: 
+        do_ionization = kwargs["do_ionization"]
+        if do_ionization:
+            if 'X' in kwargs and 'Y' in kwargs:
                 X=kwargs["X"]
                 Y=kwargs['Y']
-        else:
-            raise RuntimeError("No metallicity was given")
-        
+            else:
+                raise RuntimeError("No metallicity was given")
+    if "period" in kwargs:
+        period = kwargs['period']
+    
+
     path_to_fort95 = path+"/fort.95"
     path_to_fort18 = path+"/fort.18"
     path_to_fort19 = path+"/fort.19"
@@ -45,6 +50,8 @@ def bpfDataRead(path : str, **kwargs):
     model_obj=Model(path_to_fort95)
     history_obj=History(path_to_fort18)
     rawprofile_obj=RawProfiles(path_to_fort19)
+    if period is not None:
+        rawprofile_obj = rawprofile_obj.calculateCorrectPhases(history_obj,period)
     if (do_ionization):
         rawprofile_obj = Ionization.IonizationForRawprofile(rawprofile_obj,X,Y)
     limitcycle_obj=LimitCycle(rawprofile_obj)
