@@ -258,6 +258,24 @@ class RawProfiles:
 
         return self
 
+    def calculatePhasesfromPeriod(self,period):
+        """
+        Calculates exact phase data for given period. Works only if the phase field
+        contains time data previously copied from a History object.
+        ### Arguments:
+            period: The period of the pulsation
+        
+        ### Returns:
+            The caller object
+        """
+        times = np.array([data.datablock['phase'] for data in self.datablock])
+        times = times/period - np.floor(times/period)
+
+        for i,time in enumerate(times):
+            self.datablock[i].datablock['phase'] = time
+        
+        return self
+
 
 class TimeSeries(BaseData):
     """

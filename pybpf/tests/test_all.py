@@ -1,6 +1,8 @@
 import unittest
 import os
 
+from matplotlib.pyplot import tight_layout
+
 try:
     from .. import tcdata as tcdata
     from .. import calcion as calcion
@@ -73,10 +75,18 @@ class TestBPFReader(unittest.TestCase):
 class TestPhaseCalculations(unittest.TestCase):
     TEST_DIR=os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles')
     def test_fillPhasefromHistory(self):
-        mod,his,lim, raw = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'),return_rawprofile = True)
+        mod,his,lim, raw = bpfDataRead(self.TEST_DIR,return_rawprofile = True)
         lim = tcdata.LimitCycle(raw.fillPhaseWithHistoryTime(his))
         for num1,num2 in zip(lim.timeSeries[-1].phase,his.time[-lim.num_profiles:]):
             self.assertAlmostEqual(num1,num2)
+    def test_phaseCalculations(self):
+        period = 1.36133201636715 ** -1
+        mod,his,lim, raw = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'),return_rawprofile = True)
+        raw.fillPhaseWithHistoryTime(his)
+        lim = tcdata.LimitCycle(raw.calculatePhasesfromPeriod(period))
+        for num in lim.timeSeries[-1].phase:
+            self.assertGreaterEqual(1.,num)
+            self.assertGreaterEqual(num,0.)
 
 
 if (__name__ == '__main__'):
@@ -91,8 +101,21 @@ if (__name__ == '__main__'):
     lp.add_function(tcdata.LimitCycle.__init__)
     lp.add_function(tcdata.RawProfiles.CalcSpecVol)
     lp.enable_by_count()
-    
+    mod,his,lim = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'))
     lp.print_stats()
 
+    print ('=====plotting=====')
+    from matplotlib import pyplot as plt
+    period = 1.36133201636715 ** -1
+    mod,his,lim, raw = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'),return_rawprofile = True)
+    raw.fillPhaseWithHistoryTime(his)
+    lim = tcdata.LimitCycle(raw.calculatePhasesfromPeriod(period))
+    fig,ax = plt.subplots()
+    ax.set_title('Test model period={:.5f}'.format(period))
+    ax.set_xlabel('Phase')
+    ax.set_ylabel('$v_r$ [km/s]')
+    ax.plot(lim.timeSeries[-1].phase,lim.timeSeries[-2].velocity/1e5,'-')
+    fig.savefig('test_phase.png',dpi=150,tight_layout=True)
+    print('test_phase.png is ready.')
 
     
