@@ -276,6 +276,13 @@ class RawProfiles:
         
         return self
 
+    def calculateCorrectPhases(self,his : History, period):
+        """
+        Wrapper function for Phase calculations in Rawprofile classes.
+        See Also: calculatePhasesfromPeriod and fillPhaseWithHistoryTime
+        """
+        self.fillPhaseWithHistoryTime(his)
+        return self.calculatePhasesfromPeriod(period)
 
 class TimeSeries(BaseData):
     """

@@ -87,6 +87,14 @@ class TestPhaseCalculations(unittest.TestCase):
         for num in lim.timeSeries[-1].phase:
             self.assertGreaterEqual(1.,num)
             self.assertGreaterEqual(num,0.)
+    
+    def test_wrapper(self):
+        period = 1.36133201636715 ** -1
+        mod,his,lim, raw = bpfDataRead(os.path.join(os.path.dirname(os.path.abspath(__file__)),'testfiles'),return_rawprofile = True)
+        lim = tcdata.LimitCycle(raw.calculateCorrectPhases(his,period))
+        for num in lim.timeSeries[-1].phase:
+            self.assertGreaterEqual(1.,num)
+            self.assertGreaterEqual(num,0.)
 
 
 if (__name__ == '__main__'):
